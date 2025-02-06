@@ -36,6 +36,11 @@
   "Settings for the message view."
   :group 'mu4e)
 
+(defcustom mu4e-hide-read-maildirs t
+  "Whether to hide the read maildirs (i.e. maildirs without new messages)."
+  :type 'boolean
+  :group 'mu4e)
+
 (defcustom mu4e-confirm-quit t
   "Whether to confirm to quit mu4e."
   :type 'boolean
