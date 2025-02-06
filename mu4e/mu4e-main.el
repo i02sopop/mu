@@ -223,11 +223,12 @@ for aligning them."
   (mapconcat
    (lambda (item)
      (cl-destructuring-bind
-         (&key name key favorite query
-               hide hide-if-no-unread unread &allow-other-keys) item
+         (&key name key favorite query hide hide-if-no-unread unread &allow-other-keys) item
        ;; hide items explicitly hidden, without key or wrong category.
        (if (or hide (and hide-if-no-unread (zerop unread)))
            "" ;; hide
+         (if (and (eq mu4e-hide-read-maildirs 't) (eq unread '0))
+             ""
          (let ((item-info
                 ;; note, we have a function for the binding,
                 ;; and perhaps a different one for the lambda.
@@ -263,7 +264,7 @@ for aligning them."
             ;; counts
             (format "%s%s\n"
                     (make-string (- max-length (string-width name)) ?\s)
-                    (mu4e--query-item-display-counts item)))))))
+                    (mu4e--query-item-display-counts item))))))))
    ;; only items which have a single-character :key
    (mu4e-filter-single-key (mu4e-query-items item-type)) ""))
 
