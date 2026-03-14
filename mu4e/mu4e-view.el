@@ -601,23 +601,9 @@ message."
 (defvar gnus-icalendar-additional-identities)
 (defvar-local mu4e--view-rendering nil)
 
-(defun mu4e--fake-original-article-buffer ()
-  "Create a fake original gnus article buffer.
-
-With this, some Gnus commands that require an original message
-buffer can work, e.g. for dealing with mailing-lists. We only
-store the headers, not the body, to save some memory, as we don't
-need the body.
-
-This must be called while in the raw message buffer."
-   (message-narrow-to-headers-or-head)
-   (let ((headers (buffer-string)))
-     (widen)
-     (with-current-buffer
-         (get-buffer-create gnus-original-article-buffer 'no-hooks)
-       (erase-buffer)
-       (insert headers)
-       (current-buffer))))
+(defvar mu4e--view-show-mime-buttons nil
+  "Whether to show MIME part buttons (e.g. \"[1. text/html]\").
+Toggle with `mu4e-view-toggle-mime-buttons'.")
 
 (defun mu4e--original-article-field (field)
   "Get FIELD from the original article."
@@ -642,7 +628,7 @@ As a side-effect, a message that is being viewed loses its
   ;; Unfortunately that does create its own issues: namely ensuring
   ;; buffer-local state that *must* survive is correctly copied
   ;; across.
-  (let ((linked-headers-buffer) (orig-art-buf))
+  (let ((linked-headers-buffer))
     (when-let* ((existing-buffer (mu4e-get-view-buffer nil nil)))
       ;; required; this state must carry over from the killed buffer
       ;; to the new one.
@@ -659,16 +645,10 @@ As a side-effect, a message that is being viewed loses its
             (gnus-buttonized-mime-types
              (append (list "multipart/signed" "multipart/encrypted")
                      gnus-buttonized-mime-types))
-            (gnus-inhibit-mime-unbuttonizing t))
-        (remove-overlays (point-min)(point-max) 'mu4e-overlay t)
+            (gnus-inhibit-mime-unbuttonizing mu4e--view-show-mime-buttons))
         (erase-buffer)
         (insert-file-contents-literally
          (mu4e-message-readable-path msg) nil nil nil t)
-        ;; set up an original-article-buffer, gnus wants it.
-        (setq orig-art-buf (mu4e--fake-original-article-buffer))
-        ;; some messages have ^M which causes various rendering
-        ;; problems later (#2260, #2508), so let's remove those
-        (article-remove-cr)
         (setq-local mu4e--view-message msg)
         (ignore-errors
           (mu4e--view-render-buffer msg)))
@@ -692,7 +672,8 @@ As a side-effect, a message that is being viewed loses its
       ;; support bookmarks.
       (setq-local bookmark-make-record-function
                   #'mu4e--make-bookmark-record
-                  gnus-original-article orig-art-buf)
+                  gnus-original-article
+                  (get-buffer gnus-original-article-buffer))
       ;; only needed on some setups; #2683
       (goto-char (point-min)))))
 
@@ -743,22 +724,41 @@ determine which browser function to use."
     (mu4e-action-view-in-browser msg)))
 
 (defun mu4e--view-render-buffer (msg)
-  "Render current buffer with MSG using Gnus' article mode."
-  (setq-local gnus-summary-buffer (get-buffer-create " *appease-gnus*"))
+  "Render current buffer with MSG using Gnus' article mode.
+The buffer must already contain the raw message.  This function
+decodes and displays it, sets up the original-article-buffer, and
+activates URLs."
   (let* ((inhibit-read-only t)
+         ;; Let gnus-summary-buffer be nil; all gnus-art.el code
+         ;; guards its usage with `gnus-buffer-live-p' or
+         ;; `condition-case', so nil is safe and avoids the need
+         ;; for a fake summary buffer.
+         (gnus-summary-buffer nil)
+         (gnus-article-buffer (current-buffer))
          (max-specpdl-size mu4e-view-max-specpdl-size)
          (mm-decrypt-option 'known)
          (ct (mail-fetch-field "Content-Type"))
          (ct (and ct (mail-header-parse-content-type ct)))
          (charset (mail-content-type-get ct 'charset))
          (charset (and charset (intern charset)))
-         (mu4e--view-rendering t); Needed if e.g. an ics file is buttonized
+         (mu4e--view-rendering t) ;; needed if e.g. an ics file is buttonized
          (gnus-article-emulate-mime nil) ;; avoid perf problems
          (gnus-newsgroup-charset
           (if (and charset (coding-system-p charset)) charset
             (detect-coding-region (point-min) (point-max) t)))
          ;; Possibly add headers (before "Attachments")
          (gnus-display-mime-function (mu4e--view-gnus-display-mime msg)))
+    ;; Populate gnus-original-article-buffer with the headers so
+    ;; Gnus helpers (e.g. mailing-list detection) can find them.
+    (message-narrow-to-headers-or-head)
+    (let ((headers (buffer-string)))
+      (widen)
+      (with-current-buffer
+          (get-buffer-create gnus-original-article-buffer 'no-hooks)
+        (erase-buffer)
+        (insert headers)))
+    ;; Strip ^M that can cause rendering problems (#2260, #2508).
+    (article-remove-cr)
     (condition-case err
         (progn
           (mm-enable-multibyte)
@@ -766,7 +766,6 @@ determine which browser function to use."
           (ignore-errors (run-hooks 'gnus-article-decode-hook))
           (gnus-article-prepare-display)
           (mu4e--view-activate-urls)
-          ;; `gnus-summary-bookmark-make-record' does not work properly when "appeased."
           (kill-local-variable 'bookmark-make-record-function)
           (setq mu4e~gnus-article-mime-handles gnus-article-mime-handles
                 gnus-article-decoded-p gnus-article-decode-hook)
@@ -798,6 +797,15 @@ To go back to normal display, quit the message and re-open."
          (gnus-inhibit-mime-unbuttonizing (not toggle))
          (gnus-mime-display-multipart-as-mixed toggle))
     (mu4e-view-refresh)))
+
+(defun mu4e-view-toggle-mime-buttons ()
+  "Toggle display of MIME part buttons and re-render."
+  (interactive)
+  (setq mu4e--view-show-mime-buttons
+        (not mu4e--view-show-mime-buttons))
+  (mu4e-view-refresh)
+  (mu4e-message "MIME part buttons %s"
+                (if mu4e--view-show-mime-buttons "shown" "hidden")))
 
 (defun mu4e-view-toggle-fill-flowed()
   "Toggle flowed-message text filling."
@@ -1137,8 +1145,9 @@ Based on Gnus' article-mode."
      ("htoggle headers"             . gnus-article-hide-headers)
      ("ytoggle crypto"              . gnus-article-hide-pem)
      ("ftoggle fill-flowed"         . mu4e-view-toggle-fill-flowed)
-     ("mtoggle show all MIME parts" . mu4e-view-toggle-show-mime-parts)
-     ("Mtoggle show emulate MIME"   . mu4e-view-toggle-emulate-mime))
+     ("btoggle MIME buttons"        . mu4e-view-toggle-mime-buttons)
+     ("mtoggle show all MIME parts" . mu4e-view-show-mime-parts)
+     ("Mtoggle emulate MIME"        . mu4e-view-toggle-emulate-mime))
 "Various options for \"massaging\" the message view. See `(gnus)
 Article Treatment' for more options."
   :group 'mu4e-view
