@@ -112,7 +112,6 @@ foreach src : mu4e_bc_srcs
                           '--no-init-file',
                           '--batch',
                           '--directory', meson.current_source_dir(),
-                          '--directory', meson.current_build_dir(),
                           # we don't need warnings for items that have become
                           # obsolete _after_ our last supported emacs release.
                           '--eval', '(setq byte-compile-warnings \'(not obsolete))',
