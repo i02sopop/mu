@@ -893,6 +893,38 @@ COUNT is the number of messages found."
   ;; run-hooks
   (run-hooks 'mu4e-headers-found-hook))
 
+(defmacro mu4e--in-headers-context (&rest body)
+  "Evaluate BODY in the context of the headers buffer/window.
+
+If we're already in the headers buffer/window, do nothing.
+If we're in the message view, temporarily switch."
+  `(progn
+     (let* ((msg (mu4e-message-at-point))
+            (buffer (mu4e-get-headers-buffer))
+            (docid (mu4e-message-field msg :docid)))
+       (unless (and buffer msg docid)
+         (mu4e-error "Action is not possible"))
+       ;; make sure to select the window if possible, or jumping won't be
+       ;; reflected.
+       (with-selected-window (get-buffer-window buffer)
+         (with-current-buffer buffer
+           (mu4e-thread-unfold-all)
+           (if (or (mu4e~headers-goto-docid docid)
+                   ;; TODO: Is this the best way to find another
+                   ;; relevant docid for a view buffer?
+                   ;;
+                   ;; If you attach a view buffer to another headers
+                   ;; buffer that does not contain the current docid
+                   ;; then `mu4e~headers-goto-docid' returns nil and we
+                   ;; get an error. This "hack" instead gets its
+                   ;; now-changed headers buffer's current message as a
+                   ;; docid
+                   (mu4e~headers-goto-docid
+                    (with-current-buffer buffer
+                      (mu4e-message-field (mu4e-message-at-point) :docid))))
+               (progn ,@body)
+             (mu4e-error "Cannot find message in headers buffer")))))))
+
 ;;; Marking
 
 (defmacro mu4e~headers-defun-mark-for (mark)
@@ -1331,38 +1363,40 @@ That is, some markpair (move, delete etc.), a field to match and
 a regular expression to match with. Then, mark all matching
 messages with that mark."
   (interactive)
-  (let ((markpair (mu4e--mark-get-markpair "Mark matched messages with: " t))
-        (field (mu4e-read-option "Field to match: "
-                                 '( ("subject" . :subject)
-                                    ("from"    . :from)
-                                    ("to"      . :to)
-                                    ("cc"      . :cc)
-                                    ("bcc"     . :bcc)
-                                    ("list"    . :list))))
-        (pattern (read-string
-                  (mu4e-format "Regexp:")
-                  nil 'mu4e~headers-regexp-hist)))
-    (mu4e-headers-mark-for-each-if
-     markpair
-     (lambda (msg _param)
-       (let* ((value (mu4e-msg-field msg field)))
-         (if (member field '(:to :from :cc :bcc :reply-to))
-             (cl-find-if (lambda (contact)
-                           (let ((name (mu4e-contact-name contact))
-                                 (email (mu4e-contact-email contact)))
-                             (or (and name (string-match pattern name))
-                                 (and email (string-match pattern email)))))
-                         value)
-           (string-match pattern (or value ""))))))))
+  (mu4e--in-headers-context
+   (let ((markpair (mu4e--mark-get-markpair "Mark matched messages with: " t))
+         (field (mu4e-read-option "Field to match: "
+                                  '( ("subject" . :subject)
+                                     ("from"    . :from)
+                                     ("to"      . :to)
+                                     ("cc"      . :cc)
+                                     ("bcc"     . :bcc)
+                                     ("list"    . :list))))
+         (pattern (read-string
+                   (mu4e-format "Regexp:")
+                   nil 'mu4e~headers-regexp-hist)))
+     (mu4e-headers-mark-for-each-if
+      markpair
+      (lambda (msg _param)
+        (let* ((value (mu4e-msg-field msg field)))
+          (if (member field '(:to :from :cc :bcc :reply-to))
+              (cl-find-if (lambda (contact)
+                            (let ((name (mu4e-contact-name contact))
+                                  (email (mu4e-contact-email contact)))
+                              (or (and name (string-match pattern name))
+                                  (and email (string-match pattern email)))))
+                          value)
+            (string-match pattern (or value "")))))))))
 
 (defun mu4e-headers-mark-custom ()
   "Mark messages based on a user-provided predicate function."
   (interactive)
-  (let* ((pred (mu4e-read-option "Match function: "
-                                 mu4e-headers-custom-markers))
-         (param (when (cdr pred) (eval (cdr pred))))
-         (markpair (mu4e--mark-get-markpair "Mark matched messages with: " t)))
-    (mu4e-headers-mark-for-each-if markpair (car pred) param)))
+  (mu4e--in-headers-context
+   (let* ((pred (mu4e-read-option "Match function: "
+                                  mu4e-headers-custom-markers))
+          (param (when (cdr pred) (eval (cdr pred))))
+          (markpair (mu4e--mark-get-markpair "Mark matched messages with: " t)))
+     (mu4e-headers-mark-for-each-if markpair (car pred) param))))
 
 (defun mu4e~headers-get-thread-info (msg what)
   "Get WHAT (a symbol, either path or thread-id) for MSG."
@@ -1426,14 +1460,16 @@ If SUBTHREAD is non-nil, only apply to subthread."
            (mu4e--mark-get-markpair
             (if subthread "Mark subthread with: " "Mark whole thread with: ")
             t))))
-  (mu4e-headers-mark-thread-using-markpair markpair subthread))
+  (mu4e--in-headers-context
+   (mu4e-headers-mark-thread-using-markpair markpair subthread)))
 
 (defun mu4e-headers-mark-subthread (&optional markpair)
   "Like `mu4e-mark-thread' with MARKPAIR, but only for a sub-thread."
   (interactive)
-  (if markpair (mu4e-headers-mark-thread t markpair)
-    (let ((current-prefix-arg t))
-      (call-interactively 'mu4e-headers-mark-thread))))
+  (mu4e--in-headers-context
+   (if markpair (mu4e-headers-mark-thread t markpair)
+     (let ((current-prefix-arg t))
+       (call-interactively 'mu4e-headers-mark-thread)))))
 
 (defun mu4e-headers-view-message ()
   "View message at point."
@@ -1470,37 +1506,38 @@ return nil.
 If pointing at a message after the move and there is a
 view-window, open the message unless
 `mu4e-headers-open-after-move' is non-nil."
-  (cl-assert (eq major-mode 'mu4e-headers-mode))
-  (when (ignore-errors
-          (let (line-move-visual)
-            (line-move lines)
-            t))
-    (let* ((docid (mu4e~headers-docid-at-point))
-           (folded (and docid (mu4e-thread-message-folded-p))))
-      (if folded
-          (mu4e~headers-move (if (< lines 0) -1 1)) ;; skip folded
-        (when docid
-          ;; Skip invisible text at BOL possibly hidden by
-          ;; the end of another invisible overlay covering
-          ;; previous EOL.
-          (move-to-column 2)
-          ;; update all windows showing the headers buffer
-          (walk-windows
-           (lambda (win)
-             (when (eq (window-buffer win)
-                       (mu4e-get-headers-buffer (buffer-name)))
-               (set-window-point win (point))))
-           nil t)
-          ;; If the assigned (and buffer-local) `mu4e~headers-view-win'
-          ;; is not live then that is indicates the user does not want
-          ;; to pop up the view when they navigate in the headers
-          ;; buffer.
-          (when (and mu4e-headers-open-after-move
-                     (window-live-p mu4e~headers-view-win))
-            (mu4e-headers-view-message))
-          ;; attempt to highlight the new line, display the message
-          (mu4e~headers-highlight docid)
-          docid)))))
+    (mu4e--in-headers-context
+     (cl-assert (eq major-mode 'mu4e-headers-mode))
+     (when (ignore-errors
+             (let (line-move-visual)
+               (line-move lines)
+               t))
+       (let* ((docid (mu4e~headers-docid-at-point))
+              (folded (and docid (mu4e-thread-message-folded-p))))
+         (if folded
+             (mu4e~headers-move (if (< lines 0) -1 1)) ;; skip folded
+           (when docid
+             ;; Skip invisible text at BOL possibly hidden by
+             ;; the end of another invisible overlay covering
+             ;; previous EOL.
+             (move-to-column 2)
+             ;; update all windows showing the headers buffer
+             (walk-windows
+              (lambda (win)
+                (when (eq (window-buffer win)
+                          (mu4e-get-headers-buffer (buffer-name)))
+                  (set-window-point win (point))))
+              nil t)
+             ;; If the assigned (and buffer-local) `mu4e~headers-view-win'
+             ;; is not live then that is indicates the user does not want
+             ;; to pop up the view when they navigate in the headers
+             ;; buffer.
+             (when (and mu4e-headers-open-after-move
+                        (window-live-p mu4e~headers-view-win))
+               (mu4e-headers-view-message))
+             ;; attempt to highlight the new line, display the message
+             (mu4e~headers-highlight docid)
+             docid))))))
 
 (defun mu4e-headers-next (&optional n)
   "Move point to the next message header.
@@ -1530,13 +1567,14 @@ view-window, open the message unless
   "Move point to next message that is unread/untrashed.
 If BACKWARDS is non-nil, move backwards."
   (interactive "P")
-  (or (mu4e-headers-find-if-next
-       (lambda (msg)
-         (let ((flags (mu4e-message-field msg :flags)))
-           (and (member 'unread flags) (not (member 'trashed flags)))))
-       backwards)
-      (mu4e-message (format "No %s unread message found"
-                            (if backwards "previous" "next")))))
+  (mu4e--in-headers-context
+   (or (mu4e-headers-find-if-next
+        (lambda (msg)
+          (let ((flags (mu4e-message-field msg :flags)))
+            (and (member 'unread flags) (not (member 'trashed flags)))))
+        backwards)
+       (mu4e-message (format "No %s unread message found"
+                             (if backwards "previous" "next"))))))
 
 (defun mu4e-headers-prev-unread ()
   "Move point to previous unread/untrashed message."
@@ -1558,11 +1596,27 @@ If MSG is nil, use message at point."
            (root (plist-get meta :root)))
       (or root (and orphan first-child)))))
 
+
+(defun mu4e-headers-thread-goto-root ()
+  "Move to thread root."
+  (interactive)
+  (mu4e--in-headers-context (mu4e-thread-goto-root)))
+
+(defun mu4e-headers-thread-fold-toggle-goto-next ()
+  "Toggle threading or go to next."
+  (interactive)
+  (mu4e--in-headers-context (mu4e-thread-fold-toggle-goto-next)))
+
+(defun mu4e-headers-thread-fold-toggle-all ()
+  "Toggle all threads."
+  (interactive)
+  (mu4e--in-headers-context (mu4e-thread-fold-toggle-all)))
+
 (defun mu4e~headers-prev-or-next-thread (backwards)
   "Move point to the top of the next thread.
 If BACKWARDS is non-nil, move backwards."
   (when (mu4e-headers-find-if-next #'mu4e~headers-thread-root-p backwards)
-      (point)))
+    (point)))
 
 (defun mu4e-headers-prev-thread ()
   "Move point to the previous thread."
@@ -1616,10 +1670,11 @@ argument."
   "Set MARK on the message at point or in region.
 Then, move to the next message."
   (interactive)
-  (when (mu4e-thread-message-folded-p)
-    (mu4e-warn "Cannot mark folded messages"))
-  (mu4e-mark-set mark)
-  (when mu4e-headers-advance-after-mark (mu4e-headers-next)))
+  (mu4e--in-headers-context
+   (when (mu4e-thread-message-folded-p)
+     (mu4e-warn "Cannot mark folded messages"))
+   (mu4e-mark-set mark)
+   (when mu4e-headers-advance-after-mark (mu4e-headers-next))))
 
 (defun mu4e~headers-quit-buffer ()
   "Quit the mu4e-headers buffer and go back to the main view."

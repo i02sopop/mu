@@ -1,6 +1,6 @@
 ;;; mu4e-view.el --- Mode for viewing e-mail messages -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021-2025 Dirk-Jan C. Binnema
+;; Copyright (C) 2021-2026 Dirk-Jan C. Binnema
 
 ;; Author: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
 ;; Maintainer: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
@@ -120,71 +120,11 @@ Then, display the results."
   (let ((path (mu4e-message-readable-path)))
     (mu4e-process-file-through-pipe path cmd)))
 
-(defmacro mu4e--view-in-headers-context (&rest body)
-  "Evaluate BODY in the context of the headers buffer."
-  `(progn
-     (let* ((msg (mu4e-message-at-point))
-            (buffer (cond
-                     ;; are we already inside a headers buffer?
-                     ((mu4e-current-buffer-type-p 'headers) (current-buffer))
-                     ;; if not, are we inside a view buffer, and does
-                     ;; it have linked headers buffer?
-                     ((mu4e-current-buffer-type-p 'view)
-                      (when (mu4e--view-detached-p (current-buffer))
-                        (mu4e-error
-                         "Cannot navigate in a detached view buffer"))
-                      (mu4e-get-headers-buffer))
-                     ;; fallback; but what would trigger this?
-                     (t (mu4e-get-headers-buffer))))
-            (docid (mu4e-message-field msg :docid)))
-       (unless docid
-         (mu4e-error "Message without docid: action is not possible"))
-
-       ;; make sure to select the window if possible, or jumping won't be
-       ;; reflected.
-       (with-selected-window (or (get-buffer-window buffer)
-                                 (get-buffer-window))
-         (with-current-buffer buffer
-           (mu4e-thread-unfold-all)
-           (if (or (mu4e~headers-goto-docid docid)
-                   ;; TODO: Is this the best way to find another
-                   ;; relevant docid for a view buffer?
-                   ;;
-                   ;; If you attach a view buffer to another headers
-                   ;; buffer that does not contain the current docid
-                   ;; then `mu4e~headers-goto-docid' returns nil and we
-                   ;; get an error. This "hack" instead gets its
-                   ;; now-changed headers buffer's current message as a
-                   ;; docid
-                   (mu4e~headers-goto-docid
-                    (with-current-buffer buffer
-                      (mu4e-message-field (mu4e-message-at-point) :docid))))
-               ,@body
-             (mu4e-error "Cannot find message in headers buffer")))))))
-
-(defun mu4e-view-headers-next (&optional n)
-  "Move point to the next message header.
-If this succeeds, return the new docid. Otherwise, return nil.
-Optionally, takes an integer N (prefix argument), to the Nth next
-header."
-  (interactive "P")
-  (mu4e--view-in-headers-context
-   (mu4e~headers-move (or n 1))))
-
-(defun mu4e-view-headers-prev (&optional n)
-  "Move point to the previous message header.
-If this succeeds, return the new docid. Otherwise, return nil.
-Optionally, takes an integer N (prefix argument), to the Nth
-previous header."
-  (interactive "P")
-  (mu4e--view-in-headers-context
-   (mu4e~headers-move (- (or n 1)))))
-
 (defun mu4e--view-prev-or-next (func backwards)
   "Move point to the next or previous message and invoke FUNC.
 Go to the previous message if BACKWARDS is non-nil. If this
 succeeds, return the new docid. Otherwise, return nil."
-  (mu4e--view-in-headers-context (funcall func backwards))
+  (funcall func backwards)
   (mu4e-select-other-view)
   (mu4e-headers-view-message))
 
@@ -212,21 +152,6 @@ If this succeeds, return the new docid. Otherwise, return nil."
   (interactive)
   (mu4e--view-prev-or-next #'mu4e~headers-prev-or-next-thread nil))
 
-(defun mu4e-view-thread-goto-root ()
-  "Move to thread root."
-  (interactive)
-  (mu4e--view-in-headers-context (mu4e-thread-goto-root)))
-
-(defun mu4e-view-thread-fold-toggle-goto-next ()
-  "Toggle threading or go to next."
-  (interactive)
-  (mu4e--view-in-headers-context (mu4e-thread-fold-toggle-goto-next)))
-
-(defun mu4e-view-thread-fold-toggle-all ()
-  "Toggle all threads."
-  (interactive)
-  (mu4e--view-in-headers-context (mu4e-thread-fold-toggle-all)))
-
 ;;; Interactive functions
 (defun mu4e-view-action (&optional msg)
   "Ask user for some action to apply on MSG, then do it.
@@ -238,46 +163,6 @@ If MSG is nil apply action to message returned by
   (let* ((msg (or msg (mu4e-message-at-point)))
          (actionfunc (mu4e-read-option "Action: " mu4e-view-actions)))
     (funcall actionfunc msg)))
-
-(defun mu4e-view-mark-pattern ()
-  "Mark messages that match a certain pattern.
-Ask user for a kind of mark, (move, delete etc.), a field to
-match and a regular expression to match with. Then, mark all
-matching messages with that mark."
-  (interactive)
-  (mu4e--view-in-headers-context (mu4e-headers-mark-pattern)))
-
-(defun mu4e-view-mark-thread (&optional markpair)
-  "Mark whole thread with a certain mark.
-Ask user for a kind of mark (move, delete etc.), and apply it
-to all messages in the thread at point in the headers view. The
-optional MARKPAIR can also be used to provide the mark
-selection."
-  (interactive)
-  (mu4e--view-in-headers-context
-   (if markpair (mu4e-headers-mark-thread nil markpair)
-     (call-interactively 'mu4e-headers-mark-thread))))
-
-(defun mu4e-view-mark-subthread (&optional markpair)
-  "Mark subthread with a certain mark.
-Ask user for a kind of mark (move, delete etc.), and apply it
-to all messages in the subthread at point in the headers view.
-The optional MARKPAIR can also be used to provide the mark
-selection."
-  (interactive)
-  (mu4e--view-in-headers-context
-   (if markpair (mu4e-headers-mark-subthread markpair)
-     (mu4e-headers-mark-subthread))))
-
-(defun mu4e-view-search-narrow ()
-  "Run `mu4e-headers-search-narrow' in the headers buffer."
-  (interactive)
-  (mu4e--view-in-headers-context (mu4e-search-narrow)))
-
-(defun mu4e-view-search-edit ()
-  "Run `mu4e-search-edit' in the headers buffer."
-  (interactive)
-  (mu4e--view-in-headers-context (mu4e-search-edit)))
 
 (defun mu4e-mark-region-code ()
   "Highlight region marked with `message-mark-inserted-region'.
@@ -308,16 +193,9 @@ Add this function to `mu4e-view-mode-hook' to enable this feature."
           (setq beg nil end nil))))))
 
 ;;; View Utilities
-
-(defun mu4e-view-mark-custom ()
-  "Run some custom mark function."
-  (mu4e--view-in-headers-context
-   (mu4e-headers-mark-custom)))
-
 (defun mu4e--view-split-view-p ()
   "Return t if we're in split-view, nil otherwise."
   (member mu4e-split-view '(horizontal vertical)))
-
 
 (defun mu4e-view-detach ()
   "Detach the view buffer from its headers buffer."
@@ -368,64 +246,6 @@ any further, go the next message."
   "Scroll text of selected window down one line."
   (interactive)
   (scroll-down 1))
-
-;;; Mark commands
-
-(defun mu4e-view-unmark-all ()
-  "If we're in split-view, unmark all messages.
-Otherwise, warn user that unmarking only works in the header
-list."
-  (interactive)
-  (if (mu4e--view-split-view-p)
-      (mu4e--view-in-headers-context (mu4e-mark-unmark-all))
-    (mu4e-message "Unmarking needs to be done in the header list view")))
-
-(defun mu4e-view-unmark ()
-  "If we're in split-view, unmark message at point.
-Otherwise, warn user that unmarking only works in the header
-list."
-  (interactive)
-  (if (mu4e--view-split-view-p)
-      (mu4e-view-mark-for-unmark)
-    (mu4e-message "Unmarking needs to be done in the header list view")))
-
-(defun mu4e-view-mark-and-next (mark)
-  "Set MARK on the current message.
-  Then, move to the next message."
-  (interactive)
-  (mu4e--view-in-headers-context
-   (mu4e-headers-mark-and-next mark)))
-
-(defmacro mu4e--view-defun-mark-for (mark)
-  "Define a function mu4e-view-mark-for- MARK."
-  (let ((funcname (intern (format "mu4e-view-mark-for-%s" mark)))
-        (docstring (format "Mark the current message for %s." mark)))
-    `(progn
-       (defun ,funcname () ,docstring
-              (interactive)
-              (mu4e--view-in-headers-context
-               (mu4e-headers-mark-and-next ',mark)))
-       (put ',funcname 'definition-name ',mark))))
-
-(mu4e--view-defun-mark-for move)
-(mu4e--view-defun-mark-for refile)
-(mu4e--view-defun-mark-for delete)
-(mu4e--view-defun-mark-for flag)
-(mu4e--view-defun-mark-for unflag)
-(mu4e--view-defun-mark-for unmark)
-(mu4e--view-defun-mark-for something)
-(mu4e--view-defun-mark-for read)
-(mu4e--view-defun-mark-for unread)
-(mu4e--view-defun-mark-for trash)
-(mu4e--view-defun-mark-for untrash)
-(mu4e--view-defun-mark-for label)
-(mu4e--view-defun-mark-for unlabel)
-
-(defun mu4e-view-marked-execute ()
-  "Execute the marked actions."
-  (interactive)
-  (mu4e--view-in-headers-context
-   (mu4e-mark-execute-all)))
 
 ;;; URL handling
 
@@ -958,9 +778,9 @@ This is useful for advising some Gnus-functionality that does not work in mu4e."
     (define-key map "z" #'mu4e-view-detach)
     (define-key map "Z" #'mu4e-view-attach)
 
-    (define-key map "%" #'mu4e-view-mark-pattern)
-    (define-key map "t" #'mu4e-view-mark-subthread)
-    (define-key map "T" #'mu4e-view-mark-thread)
+    (define-key map "%" #'mu4e-headers-mark-pattern)
+    (define-key map "t" #'mu4e-headers-mark-subthread)
+    (define-key map "T" #'mu4e-headers-mark-thread)
 
     (define-key map "g" #'mu4e-view-go-to-url)
     (define-key map "k" #'mu4e-view-save-url)
@@ -987,51 +807,43 @@ This is useful for advising some Gnus-functionality that does not work in mu4e."
     (define-key map (kbd "<backspace>") #'mu4e-scroll-down)
 
     ;; navigation between messages
-    (define-key map "p" #'mu4e-view-headers-prev)
-    (define-key map "n" #'mu4e-view-headers-next)
+    (define-key map "p" #'mu4e-headers-prev)
+    (define-key map "n" #'mu4e-headers-next)
     ;; the same
-    (define-key map (kbd "<M-down>") #'mu4e-view-headers-next)
-    (define-key map (kbd "<M-up>") #'mu4e-view-headers-prev)
+    (define-key map (kbd "<M-down>") #'mu4e-headers-next)
+    (define-key map (kbd "<M-up>") #'mu4e-headers-prev)
 
     (define-key map (kbd "[") #'mu4e-view-headers-prev-unread)
     (define-key map (kbd "]") #'mu4e-view-headers-next-unread)
     (define-key map (kbd "{") #'mu4e-view-headers-prev-thread)
     (define-key map (kbd "}") #'mu4e-view-headers-next-thread)
 
-    ;; ;; threads
-    ;; TODO: find some binding that don't conflict
-    ;; (define-key map (kbd "<S-left>")  #'mu4e-view-thread-goto-root)
-    ;; ;; <tab> is taken already
-    ;; (define-key map (kbd "<C-S-tab>")   #'mu4e-view-thread-fold-toggle-goto-next)
-    ;; (define-key map (kbd "<backtab>") #'mu4e-view-thread-fold-toggle-all)
-
-
     ;; switching from view <-> headers (when visible)
     (define-key map "y" #'mu4e-select-other-view)
 
     ;; marking/unmarking
-    (define-key map "d" #'mu4e-view-mark-for-trash)
-    (define-key map (kbd "<delete>") #'mu4e-view-mark-for-delete)
-    (define-key map (kbd "<deletechar>") #'mu4e-view-mark-for-delete)
-    (define-key map (kbd "D") #'mu4e-view-mark-for-delete)
-    (define-key map (kbd "m") #'mu4e-view-mark-for-move)
-    (define-key map (kbd "r") #'mu4e-view-mark-for-refile)
+    (define-key map "d" #'mu4e-headers-mark-for-trash)
+    (define-key map (kbd "<delete>") #'mu4e-headers-mark-for-delete)
+    (define-key map (kbd "<deletechar>") #'mu4e-headers-mark-for-delete)
+    (define-key map (kbd "D") #'mu4e-headers-mark-for-delete)
+    (define-key map (kbd "m") #'mu4e-headers-mark-for-move)
+    (define-key map (kbd "r") #'mu4e-headers-mark-for-refile)
 
-    (define-key map (kbd "?") #'mu4e-view-mark-for-unread)
-    (define-key map (kbd "!") #'mu4e-view-mark-for-read)
+    (define-key map (kbd "?") #'mu4e-headers-mark-for-unread)
+    (define-key map (kbd "!") #'mu4e-headers-mark-for-read)
 
-    (define-key map (kbd "+") #'mu4e-view-mark-for-flag)
-    (define-key map (kbd "-") #'mu4e-view-mark-for-unflag)
-    (define-key map (kbd "=") #'mu4e-view-mark-for-untrash)
-    (define-key map (kbd "&") #'mu4e-view-mark-custom)
+    (define-key map (kbd "+") #'mu4e-headers-mark-for-flag)
+    (define-key map (kbd "-") #'mu4e-headers-mark-for-unflag)
+    (define-key map (kbd "=") #'mu4e-headers-mark-for-untrash)
+    (define-key map (kbd "&") #'mu4e-headers-mark-custom)
 
-    (define-key map (kbd "l") #'mu4e-view-mark-for-label)
-    (define-key map (kbd "L") #'mu4e-view-mark-for-unlabel)
+    (define-key map (kbd "l") #'mu4e-headers-mark-for-label)
+    (define-key map (kbd "L") #'mu4e-headers-mark-for-unlabel)
 
-    (define-key map (kbd "*")             #'mu4e-view-mark-for-something)
-    (define-key map (kbd "<kp-multiply>") #'mu4e-view-mark-for-something)
-    (define-key map (kbd "<insert>")     #'mu4e-view-mark-for-something)
-    (define-key map (kbd "<insertchar>") #'mu4e-view-mark-for-something)
+    (define-key map (kbd "*")             #'mu4e-headers-mark-for-something)
+    (define-key map (kbd "<kp-multiply>") #'mu4e-headers-mark-for-something)
+    (define-key map (kbd "<insert>")     #'mu4e-headers-mark-for-something)
+    (define-key map (kbd "<insertchar>") #'mu4e-headers-mark-for-something)
 
     (define-key map ";" #'mu4e-context-switch)
 
@@ -1046,9 +858,9 @@ This is useful for advising some Gnus-functionality that does not work in mu4e."
     (define-key map "c" #'mu4e-copy-thing-at-point)
 
     ;; next 3 only warn user when attempt in the message view
-    (define-key map "u" #'mu4e-view-unmark)
-    (define-key map "U" #'mu4e-view-unmark-all)
-    (define-key map "x" #'mu4e-view-marked-execute)
+    (define-key map "u" #'mu4e-headers-mark-for-unmark)
+    (define-key map "U" #'mu4e-mark-unmark-all)
+    (define-key map "x" #'mu4e-mark-execute-all)
 
     (define-key map "$" #'mu4e-show-log)
     (define-key map "H" #'mu4e-display-manual)
@@ -1074,10 +886,10 @@ This is useful for advising some Gnus-functionality that does not work in mu4e."
      ["View raw" mu4e-view-raw-message]
      ["Pipe through shell" mu4e-view-pipe]
      "--"
-     ["Mark for deletion" mu4e-view-mark-for-delete]
-     ["Mark for untrash" mu4e-view-mark-for-untrash]
-     ["Mark for trash"   mu4e-view-mark-for-trash]
-     ["Mark for move"   mu4e-view-mark-for-move]
+     ["Mark for deletion" mu4e-headers-mark-for-delete]
+     ["Mark for untrash" mu4e-headers-mark-for-untrash]
+     ["Mark for trash"   mu4e-headers-mark-for-trash]
+     ["Mark for move"   mu4e-headers-mark-for-move]
      )
    mu4e--compose-menu-items
    mu4e--search-menu-items
