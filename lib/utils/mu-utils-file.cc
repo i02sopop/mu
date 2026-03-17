@@ -29,6 +29,8 @@
 #include <gio/gio.h>
 #include <gio/gunixinputstream.h>
 
+#include <filesystem>
+
 #ifdef HAVE_WORDEXP_H
 #include <wordexp.h>
 #endif /*HAVE_WORDEXP_H*/
@@ -124,22 +126,13 @@ Mu::remove_directory(const std::string& path)
 	if (!check_dir(path, false, true))
 		return Err(Error::Code::File, "not a writable directory: {}", path);
 
-	// ugly: g_spawn wants gchar**
-	std::array<char*, 4> argv = { g_find_program_in_path("rm"),
-		g_strdup("-r"),	g_strdup(path.c_str()), {}};
-	if (!argv[0]) {
-		std::for_each(argv.begin(), argv.end(), g_free);
-		return Err(Error::Code::File, "cannot find 'rm' in path");
-	}
+	std::error_code err{};
+	const auto n{std::filesystem::remove_all(path, err)};
+	if (err)
+		return Err(Error::Code::File, "failed to remove {}; exit-code={}",
+			   path, err.value());
 
-	GError *err{};
-	int status{};
-	const auto res = g_spawn_sync({}, argv.data(), {}, {}, {}, {}, {}, {}, &status, &err);
-	std::for_each(argv.begin(), argv.end(), g_free);
-	if (!res)
-		return Err(Error::Code::File, &err, "failed to remove {}; exit-code={}", path, status);
-
-	mu_debug("removed directory '{}'", path);
+	mu_debug("removed directory '{}' ({})", path, n);
 
 	return Ok();
 }
