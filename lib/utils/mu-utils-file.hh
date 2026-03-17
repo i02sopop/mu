@@ -187,17 +187,6 @@ std::string join_paths(S&& s, Args...args) {
 }
 
 /**
- * Like g_cancellable_new(), but automatically cancels itself
- * after timeout
- *
- * @param timeout timeout in millisecs
- *
- * @return A GCancellable* instances; free with g_object_unref() when
- * no longer needed.
- */
-GCancellable* g_cancellable_new_with_timeout(guint timeout);
-
-/**
  * Read for standard input
  *
  * @return data from standard input or an error.
