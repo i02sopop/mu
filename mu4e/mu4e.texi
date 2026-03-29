@@ -1534,6 +1534,9 @@ your configuration (and see the docstring for
   (add-to-list 'mm-discouraged-alternatives "text/richtext"))
 @end lisp
 
+These influence both display of message and what is used when citing them in a
+reply.
+
 When displaying rich-text messages inline, @code{mu4e} (through @code{gnus})
 uses the @code{shr} built-in HTML-renderer. If you're using a dark color
 theme, and the messages are hard to read, it can help to change the
