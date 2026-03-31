@@ -1,7 +1,7 @@
 #+STARTUP:showall
 * NEWS (user visible changes & bigger non-visible ones)
 
-* 1.14 (released on January 24, 2026)
+* 1.14 (released on March 28, 2026)
 
   The 1.14 series continues where the 1.12 series left off, with just some
   version updates & depreciations.
