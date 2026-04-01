@@ -688,7 +688,31 @@ See `set-window-configuration' for further details."
   (when mu4e--before-draft-window-config
     ;;(message "RESTORE to %s" mu4e--before-draft-window-config)
     (set-window-configuration mu4e--before-draft-window-config)
-    (setq mu4e--before-draft-window-config nil)))
+    (setq mu4e--before-draft-window-config nil)
+    ;; After restoring the window configuration, the headers cursor position
+    ;; may be stale (the headers buffer can change during compose due to
+    ;; re-indexing or flag updates). Re-sync with the view message. #2902.
+    (mu4e--compose-post-sync-headers)))
+
+(declare-function mu4e-get-view-buffer "mu4e-window")
+(declare-function mu4e~headers-goto-docid "mu4e-headers")
+(declare-function mu4e~headers-highlight "mu4e-headers")
+
+(defun mu4e--compose-post-sync-headers ()
+  "Sync the headers buffer cursor with the current view message.
+After restoring the window configuration, the headers cursor may
+point to the wrong message.  Navigate to the message that the
+view buffer is showing, if any."
+  (when-let* ((view-buf (mu4e-get-view-buffer))
+              (msg (with-current-buffer view-buf
+                     (and (derived-mode-p 'mu4e-view-mode)
+                          (bound-and-true-p mu4e--view-message))))
+              (docid (plist-get msg :docid))
+              (headers-buf (mu4e-get-headers-buffer)))
+    (when (buffer-live-p headers-buf)
+      (with-current-buffer headers-buf
+        (when (mu4e~headers-goto-docid docid)
+          (mu4e~headers-highlight docid))))))
 
 (defvar mu4e--draft-activation-frame nil
   "Frame from which composition was activated.

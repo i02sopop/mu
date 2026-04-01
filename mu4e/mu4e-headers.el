@@ -912,18 +912,11 @@ If we're in the message view, temporarily switch."
          (with-current-buffer buffer
            (mu4e-thread-unfold-all)
            (if (or (mu4e~headers-goto-docid docid)
-                   ;; TODO: Is this the best way to find another
-                   ;; relevant docid for a view buffer?
-                   ;;
-                   ;; If you attach a view buffer to another headers
-                   ;; buffer that does not contain the current docid
-                   ;; then `mu4e~headers-goto-docid' returns nil and we
-                   ;; get an error. This "hack" instead gets its
-                   ;; now-changed headers buffer's current message as a
-                   ;; docid
-                   (mu4e~headers-goto-docid
-                    (with-current-buffer buffer
-                      (mu4e-message-field (mu4e-message-at-point) :docid))))
+                   ;; Docid lookup can fail when the headers buffer was
+                   ;; refreshed (e.g., re-indexing during compose).  Fall
+                   ;; back to the stable message-id. #2902.
+                   (mu4e-headers-goto-message-id
+                    (mu4e-message-field msg :message-id)))
                (progn ,@body)
              (mu4e-error "Cannot find message in headers buffer")))))))
 
