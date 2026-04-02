@@ -543,11 +543,19 @@ determine which browser function to use."
            (xwidget-webkit-browse-url url))))
     (mu4e-action-view-in-browser msg)))
 
+(defun mu4e--view-html-displayed-p ()
+  "Is any text/html MIME part currently displayed?
+Uses the MIME handle alist populated by Gnus after rendering."
+  (seq-find (lambda (handle)
+              (and (equal (mm-handle-media-type (cdr handle)) "text/html")
+                   (mm-handle-displayed-p (cdr handle))))
+            gnus-article-mime-handle-alist))
+
 (defun mu4e--view-render-buffer (msg)
   "Render current buffer with MSG using Gnus' article mode.
 The buffer must already contain the raw message.  This function
 decodes and displays it, sets up the original-article-buffer, and
-activates URLs."
+activates URLs (in plain-text mode only)."
   (let* ((inhibit-read-only t)
          ;; Let gnus-summary-buffer be nil; all gnus-art.el code
          ;; guards its usage with `gnus-buffer-live-p' or
@@ -585,7 +593,11 @@ activates URLs."
           ;; just continue if some of the decoding fails.
           (ignore-errors (run-hooks 'gnus-article-decode-hook))
           (gnus-article-prepare-display)
-          (mu4e--view-activate-urls)
+          ;; Only activate URLs in plain-text mode; in HTML mode
+          ;; the renderer already provides its own clickable links
+          ;; (#2094).
+          (unless (mu4e--view-html-displayed-p)
+            (mu4e--view-activate-urls))
           (kill-local-variable 'bookmark-make-record-function)
           (setq mu4e~gnus-article-mime-handles gnus-article-mime-handles
                 gnus-article-decoded-p gnus-article-decode-hook)
