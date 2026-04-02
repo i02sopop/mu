@@ -321,6 +321,14 @@ Also number them so they can be opened using `mu4e-view-go-to-url'."
                                        'face 'mu4e-url-number-face)))))))))
 
 
+(defun mu4e--view-remove-url-activations ()
+  "Remove URL activations previously added by `mu4e--view-activate-urls'."
+  (dolist (ov (overlays-in (point-min) (point-max)))
+    (when (overlay-get ov 'mu4e-overlay)
+      (delete-overlay ov)))
+  (setq mu4e--view-link-map
+        (make-hash-table :size 32 :weakness nil)))
+
 (defun mu4e--view-get-urls-num (prompt &optional multi)
   "Ask the user with PROMPT for an URL number for MSG.
 The number is [1..n] for URLs \[0..(n-1)] in the message. If
@@ -998,7 +1006,14 @@ Article Treatment' for more options."
                           (equal (mm-handle-media-type (cdr handle))
                                  "text/plain"))
                         gnus-article-mime-handle-alist)))
-        (gnus-article-inline-part (car html-part))
+        (progn
+          ;; Call gnus-mime-inline-part directly, bypassing
+          ;; gnus-article-part-wrapper which requires gnus-summary-buffer.
+          (gnus-mime-inline-part (cdr html-part))
+          ;; Activate or deactivate URLs depending on the new state.
+          (if (mu4e--view-html-displayed-p)
+              (mu4e--view-remove-url-activations)
+            (mu4e--view-activate-urls)))
       (mu4e-warn "Cannot switch; no html and/or text part in this message"))))
 ;;; Bug Reference mode support
 
