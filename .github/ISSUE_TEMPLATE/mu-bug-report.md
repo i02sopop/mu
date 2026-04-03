@@ -27,6 +27,7 @@ If this is about a specific (kind of) message, please attach an example message
 Please describe the versions of OS, Emacs, mu etc. you are using.
 
 **Checklist**
-- [ ] you are running either the latest 1.10.x/1.12.x release or `master` (otherwise, please upgrade).
+- [ ] you are running either the latest 1.12.x, 1.14.x release or `master`
+      (otherwise, please upgrade).
 
 Thank you!

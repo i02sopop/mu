@@ -25,9 +25,12 @@ any relevant logs and outputs:
 - Try some small variations of what you were doing. Does it make a difference?
 
 - If this is about a specific (kind of) message, attach an example message.
-  (Open the message, press `.` (`mu4e-view-raw-message`), then `C-x C-w` and
-  attach. Anonymize as needed, all that matters is that the issue still
-  reproduces.
+  (Open the message, use `M-x mu4e-copy-message-path` and open the message file,
+  truncate/anonymize as needed (as long as the issue still reproduces), and
+  attach to the ticket.
+
+- Include relevant versions of software and/or other specifics of your system
+  that may be relevant.
 
 **Environment**
 
@@ -35,8 +38,9 @@ Please describe the versions of OS, Emacs, mu/mu4e etc. you are using.
 
 **Checklist**
 
-- [ ] you are running either an 1.10.x/1.12.x release or `master` (otherwise please upgrade)
-- [ ] you can reproduce the problem without 3rd party extensions (including Doom/Evil, various extensions etc.)
+- [ ] you are running either an 1.12.x/1.14.x release or `master` (otherwise please upgrade)
+- [ ] you can reproduce the problem *without* 3rd party extensions (including
+      Doom/Evil, various extensions etc.)
 - [ ] you have read all of the above
 
 Please make sure you all items in the checklist are set/met before filing the ticket.
