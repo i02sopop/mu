@@ -900,15 +900,17 @@ COUNT is the number of messages found."
 
 If we're already in the headers buffer/window, do nothing.
 If we're in the message view, temporarily switch."
-  `(progn
+  `(if (eq major-mode 'mu4e-headers-mode)
+       (progn ,@body)
      (let* ((msg (mu4e-message-at-point))
             (buffer (mu4e-get-headers-buffer))
             (docid (mu4e-message-field msg :docid)))
        (unless (and buffer msg docid)
          (mu4e-error "Action is not possible"))
-       ;; make sure to select the window if possible, or jumping won't be
-       ;; reflected.
-       (with-selected-window (get-buffer-window buffer)
+       ;; Select the window if possible, or jumping won't be reflected.
+       ;; Note: in single-window mode the headers buffer is probably not
+       ;; visible; in that case, fall back to the selected window.
+       (with-selected-window (or (get-buffer-window buffer) (selected-window))
          (with-current-buffer buffer
            (mu4e-thread-unfold-all)
            (if (or (mu4e~headers-goto-docid docid)
