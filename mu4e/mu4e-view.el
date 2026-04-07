@@ -660,6 +660,49 @@ Note that for some messages, this can trigger high CPU load."
   (setq gnus-article-emulate-mime (not gnus-article-emulate-mime))
   (mu4e-view-refresh))
 
+(defun mu4e--view-insert-headers (msg &optional raw-headers)
+  "Insert mu4e headers for MSG into the current buffer at point.
+RAW-HEADERS, when non-nil, is an alist of (FIELD . VALUE) strings
+for standard RFC headers (From, To, Cc, etc.) that should be
+rendered directly.  When nil, those fields are left for Gnus to
+render.  After inserting, highlight the headers."
+  (dolist (field mu4e-view-fields)
+    (let ((fieldval (mu4e-message-field msg field)))
+      (pcase field
+        ((or ':path ':maildir ':list)
+         (mu4e--view-gnus-insert-header field fieldval))
+        (':message-id
+         (when-let* ((msgid (plist-get msg :message-id)))
+           (mu4e--view-gnus-insert-header field (format "<%s>" msgid))))
+        (':mailing-list
+         (let ((list (plist-get msg :list)))
+           (when list
+             (mu4e--view-gnus-insert-header
+              field (mu4e-get-mailing-list-shortname list)))))
+        ((or ':flags ':labels ':tags)
+         (let ((items (mapconcat (lambda (item)
+                                  (if (symbolp item)
+                                      (symbol-name item)
+                                    item))
+                                fieldval ", ")))
+           (mu4e--view-gnus-insert-header field items)))
+        (':size (mu4e--view-gnus-insert-header
+                 field (mu4e-display-size fieldval)))
+        ((or ':subject ':to ':from ':cc ':bcc ':from-or-to
+             ':user-agent ':date)
+         ;; Standard fields: insert from raw-headers if available,
+         ;; otherwise they are handled by Gnus.
+         (when-let* ((raw (and raw-headers (cdr (assq field raw-headers)))))
+           (mu4e--view-gnus-insert-header field raw)))
+        ((or ':attachments ':signature ':decryption)) ;; skip
+        (_
+         (mu4e--view-gnus-insert-header-custom msg field)))))
+  ;; Highlight the header block we just inserted
+  (let ((gnus-treatment-function-alist
+         '((gnus-treat-highlight-headers
+            gnus-article-highlight-headers))))
+    (gnus-treat-article 'head)))
+
 (defun mu4e--view-gnus-display-mime (msg)
   "Like `gnus-display-mime', but include mu4e headers to MSG."
   (lambda (&optional ihandles)
@@ -669,39 +712,15 @@ Note that for some messages, this can trigger high CPU load."
         (article-goto-body)
         (forward-line -1)
         (narrow-to-region (point) (point))
-        (dolist (field mu4e-view-fields)
-          (let ((fieldval (mu4e-message-field msg field)))
-            (pcase field
-              ((or ':path ':maildir ':list)
-               (mu4e--view-gnus-insert-header field fieldval))
-              (':message-id
-               (when-let* ((msgid (plist-get msg :message-id)))
-                 (mu4e--view-gnus-insert-header field (format "<%s>" msgid))))
-              (':mailing-list
-               (let ((list (plist-get msg :list)))
-                 (if list (mu4e-get-mailing-list-shortname list) "")))
-              ((or ':flags ':labels ':tags)
-               (let ((items (mapconcat (lambda (item)
-                                         (if (symbolp item)
-                                             (symbol-name item)
-                                           item)) fieldval ", ")))
-                 (mu4e--view-gnus-insert-header field items)))
-              (':size (mu4e--view-gnus-insert-header
-                       field (mu4e-display-size fieldval)))
-              ((or ':subject ':to ':from ':cc ':bcc ':from-or-to
-                   ':user-agent ':date ':attachments
-                   ':signature ':decryption)) ;; handled by Gnus
-              (_
-               (mu4e--view-gnus-insert-header-custom msg field)))))
-        (let ((gnus-treatment-function-alist
-               '((gnus-treat-highlight-headers
-                  gnus-article-highlight-headers))))
-          (gnus-treat-article 'head))))))
+        (mu4e--view-insert-headers msg)))))
 
 (defun mu4e--view-gnus-insert-header (field val)
   "Insert a header FIELD with value VAL."
   (let* ((info (cdr (assoc field mu4e-header-info)))
-         (key (plist-get info :name))
+         (key (or (plist-get info :name)
+                  ;; Fallback for fields not in mu4e-header-info
+                  ;; (e.g. :user-agent): derive from the keyword name.
+                  (capitalize (substring (symbol-name field) 1))))
          (help (plist-get info :help)))
     (if (and val (> (length val) 0))
         (insert (propertize (concat key ":") 'help-echo help)
