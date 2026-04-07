@@ -250,7 +250,7 @@ After these steps, @code{mu4e} should be ready to go!
 @section Requirements
 @cindex requirements
 @code{mu}/@code{mu4e} are known to work on a wide variety of Unix- and Unix-like
-systems, including many Linux distributions, OS X and FreeBSD. Emacs 26.3 or
+systems, including many Linux distributions, OS X and FreeBSD. Emacs 28.1 or
 higher is required, as well as @uref{https://xapian.org/,Xapian} and
 @uref{http://spruce.sourceforge.net/gmime/,GMime}.
 @cindex GMime
@@ -4190,7 +4190,6 @@ see, most of it is commented-out.
    smtpmail-local-domain        "example.com")
 @end lisp
 
-
 @node Longer configuration
 @section Longer configuration
 
@@ -4422,13 +4421,6 @@ Next step: let's make a @code{mu4e} configuration for this:
    smtpmail-default-smtp-server "smtp.gmail.com"
    smtpmail-smtp-server "smtp.gmail.com"
    smtpmail-smtp-service 587)
-
-;; alternatively, for emacs-24 you can use:
-;;(setq message-send-mail-function 'smtpmail-send-it
-;;     smtpmail-stream-type 'starttls
-;;     smtpmail-default-smtp-server "smtp.gmail.com"
-;;     smtpmail-smtp-server "smtp.gmail.com"
-;;     smtpmail-smtp-service 587)
 
 ;; don't keep message buffers around
 (setq message-kill-buffer-on-exit t)
@@ -4965,6 +4957,7 @@ the headers-view, which may happen at some time.
 @menu
 * Fancy characters:: Non-ascii characters in the UI
 * Refiling messages:: Moving message to some archive folder
+* Refiling from the command-line:: Refiling using shell commands
 * Saving outgoing messages:: Automatically save sent messages
 * Confirmation before sending:: Check messages before sending
 @end menu
@@ -5104,6 +5097,23 @@ another variable:
   "List of mailing list addresses and folders where
    their messages are saved.")
 @end lisp
+
+
+@node Refiling from the command-line
+@section Refiling from the command-line
+
+If you want to refile a lot of messages, a powerful way is to use some of
+@t{mu}' command-line utilities.
+
+For instance, to move all message from 2010 to some maildir @t{/archive-2010},
+you could try something like:
+
+@example
+$ mu find date:2010..2010 --exec 'echo' | \
+     xargs -I @{@} echo "mu move @{@} /archive-2010"
+
+(this ^^ just echoes, use to test first...).
+@end example
 
 @node Saving outgoing messages
 @section Saving outgoing messages
