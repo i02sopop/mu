@@ -716,16 +716,20 @@ view buffer is showing, if any."
 
 (defvar mu4e--draft-activation-frame nil
   "Frame from which composition was activated.
-Used internally for mu4e-compose-post-kill-frame.")
+Used internally for `mu4e-compose-post-kill-frame'.")
+
+(defvar mu4e--draft-compose-frame nil
+  "Frame in which the composition buffer is displayed.
+Used internally for `mu4e-compose-post-kill-frame'.")
 
 (defun mu4e-compose-post-kill-frame ()
   "Function that might kill the composition frame.
 This is for use in `mu4e-compose-post-hook'."
-  (let ((msgframe (selected-frame)))
-    (when (and mu4e--draft-activation-frame
-               (frame-live-p msgframe)
-               (not (eq mu4e--draft-activation-frame msgframe)))
-      (delete-frame msgframe))))
+  (when-let* ((compose-frame mu4e--draft-compose-frame)
+              (activation-frame mu4e--draft-activation-frame))
+    (when (and (frame-live-p compose-frame)
+               (not (eq activation-frame compose-frame)))
+      (delete-frame compose-frame))))
 
 (defvar mu4e-message-post-action nil
   "Runtime variable for use with `mu4e-compose-post-hook'.
@@ -733,15 +737,24 @@ It contains a symbol denoting the action that triggered the hook,
 either `send', `exit', `kill' or `postpone'.")
 
 (defvar mu4e-compose-post-hook)
+(defvar-local mu4e--post-hook-done nil
+  "Whether `mu4e-compose-post-hook' has already run for this buffer.")
+
 (defun mu4e--message-post-actions (trigger)
   "Invoked after we're done with a message with TRIGGER.
 
 See `mu4e-message-post-action' for the available triggers.
 
 I.e. this multiplexes the `message-(send|exit|kill|postpone)-actions';
-with the mu4e-message-post-action set accordingly."
-  (setq mu4e-message-post-action trigger)
-  (run-hooks 'mu4e-compose-post-hook))
+with the mu4e-message-post-action set accordingly.
+
+The hook is run at most once per compose buffer; e.g. send-and-exit
+triggers both `send' and `exit' actions but only the first one
+fires the hook."
+  (unless mu4e--post-hook-done
+    (setq mu4e--post-hook-done t)
+    (setq mu4e-message-post-action trigger)
+    (run-hooks 'mu4e-compose-post-hook)))
 
 (defun mu4e--prepare-post (&optional oldframe oldwindconf)
     "Prepare the `mu4e-compose-post-hook` handling.
@@ -754,6 +767,7 @@ window configuration."
     ;; each composition buffer tracks its *own* activation context, which is
     ;; needed when multiple compositions exist simultaneously.
     (setq-local mu4e--draft-activation-frame oldframe
+                mu4e--draft-compose-frame (selected-frame)
                 mu4e--before-draft-window-config oldwindconf)
 
     ;; make message's "post" hooks local, and multiplex them

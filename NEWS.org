@@ -19,7 +19,9 @@
    - ~mu4e-compose-reply-include-mime-types~ specifies the mime-types for message
      attachments that should be included in replies, with the default set to
      "text/x-patch" -- i.e., patches are included in replies, so you can comment
-     on them. Set to nil to disable.
+     on them. Set to nil to disable. (1.14.0)
+
+   - ~mu4e-compose-post-hook~ only runs once per message (buffer) (1.14.1)
 
 *** scm
 
