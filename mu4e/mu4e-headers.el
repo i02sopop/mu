@@ -1,6 +1,6 @@
 ;;; mu4e-headers.el --- Message headers -*- lexical-binding: t  -*-
 
-;; Copyright (C) 2011-2025 Dirk-Jan C. Binnema
+;; Copyright (C) 2011-2026 Dirk-Jan C. Binnema
 
 ;; Author: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
 ;; Maintainer: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
@@ -1101,7 +1101,7 @@ If THREADS is non-nil, give a more informative error message."
      (mapcar
       (lambda (item)
         (let* ((field (car item)) (width (cdr item))
-               (info (cdr (assoc field fields)))
+               (info (alist-get field fields))
                (sortable-info (plist-get info :sortable))
                ;; the effective sort-field for this field is as per its info;
                ;; if t, it's the field itself; otherwise it's either some

@@ -1,6 +1,6 @@
 ;;; mu4e-search.el --- Search-related functions -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021-2025 Dirk-Jan C. Binnema
+;; Copyright (C) 2021-2026 Dirk-Jan C. Binnema
 
 ;; Author: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
 ;; Maintainer: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
@@ -480,7 +480,7 @@ by the `:date' field."
          ;; note: 'sortable' is either a boolean (meaning: if non-nil, this is
          ;; sortable field), _or_ another field (meaning: sort by this other
          ;; field).
-         (sortable (plist-get (cdr (assoc field mu4e-header-info)) :sortable))
+         (sortable (plist-get (alist-get field mu4e-header-info) :sortable))
          ;; error check
          (sortable
           (if sortable

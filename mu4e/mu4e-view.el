@@ -235,7 +235,7 @@ any further, go the next message."
       (scroll-up)
     (error
      (when mu4e-view-scroll-to-next
-       (mu4e-view-headers-next)))))
+       (mu4e-headers-next)))))
 
 (defun mu4e-scroll-up ()
   "Scroll text of selected window up one line."
@@ -716,7 +716,7 @@ render.  After inserting, highlight the headers."
 
 (defun mu4e--view-gnus-insert-header (field val)
   "Insert a header FIELD with value VAL."
-  (let* ((info (cdr (assoc field mu4e-header-info)))
+  (let* ((info (alist-get field mu4e-header-info))
          (key (or (plist-get info :name)
                   ;; Fallback for fields not in mu4e-header-info
                   ;; (e.g. :user-agent): derive from the keyword name.
@@ -728,8 +728,8 @@ render.  After inserting, highlight the headers."
 
 (defun mu4e--view-gnus-insert-header-custom (msg field)
   "Insert MSG's custom FIELD."
-  (let* ((info (cdr-safe (or (assoc field mu4e-header-info-custom)
-                             (mu4e-error "Custom field %S not found" field))))
+  (let* ((info (or (alist-get field mu4e-header-info-custom)
+                   (mu4e-error "Custom field %S not found" field)))
          (key (plist-get info :name))
          (func (or (plist-get info :function)
                    (mu4e-error "No :function defined for custom field %S %S"
