@@ -579,6 +579,7 @@ activates URLs (in plain-text mode only)."
          (charset (and charset (intern charset)))
          (mu4e--view-rendering t) ;; needed if e.g. an ics file is buttonized
          (gnus-article-emulate-mime nil) ;; avoid perf problems
+         (gnus-mime-button-line-format "%{%([%p. %n]%)%}%e\n")
          (gnus-newsgroup-charset
           (if (and charset (coding-system-p charset)) charset
             (detect-coding-region (point-min) (point-max) t)))
@@ -601,6 +602,7 @@ activates URLs (in plain-text mode only)."
           ;; just continue if some of the decoding fails.
           (ignore-errors (run-hooks 'gnus-article-decode-hook))
           (gnus-article-prepare-display)
+          (mu4e--view-add-mime-icons)
           ;; Only activate URLs in plain-text mode; in HTML mode
           ;; the renderer already provides its own clickable links
           ;; (#2094).
@@ -702,6 +704,30 @@ render.  After inserting, highlight the headers."
          '((gnus-treat-highlight-headers
             gnus-article-highlight-headers))))
     (gnus-treat-article 'head)))
+
+(defun mu4e--view-add-mime-icons ()
+  "Add file icons before MIME attachment buttons.
+Scan the buffer for Gnus MIME buttons (via the `gnus-data' text
+property) and insert an icon before each one, based on the
+filename."
+  (save-excursion
+    (let ((pos (point-min))
+          (positions nil)
+          (inhibit-read-only t))
+      ;; Collect button start positions (forward scan).
+      (while (setq pos (next-single-property-change pos 'gnus-data))
+        (when (get-text-property pos 'gnus-data)
+          (push pos positions)) ;; naturally in reverse order
+        (setq pos (or (next-single-property-change pos 'gnus-data)
+                      (point-max))))
+      ;; Insert icons in reverse order so positions stay valid.
+      (dolist (p positions)
+        (when-let* ((handle (get-text-property p 'gnus-data))
+                    ((listp handle))
+                    (name (mm-handle-filename handle))
+                    (icon (mu4e-file-name-to-icon name)))
+          (goto-char p)
+          (insert icon " "))))))
 
 (defun mu4e--view-gnus-display-mime (msg)
   "Like `gnus-display-mime', but include mu4e headers to MSG."

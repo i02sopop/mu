@@ -23,10 +23,10 @@
 
    - ~mu4e-compose-post-hook~ only runs once per message (buffer) (1.14.1)
 
-   - You can get icons for MIME-types when using ~mu4e-view-mime-part-action~, by
-     configuring ~mu4e-file-name-to-icon-function~ (see docstring). E.g. when you
-     have the "Nerd Icons" package, you can set this to
-     ~nerd-icons-icon-for-file~. (1.14.1)
+   - You can get icons for MIME-types in the message-view and when using
+     ~mu4e-view-mime-part-action~, by configuring ~mu4e-file-name-to-icon-function~
+     (see docstring). E.g. when you have the "Nerd Icons" package, you can set
+     this to ~nerd-icons-icon-for-file~. (1.14.1)
 
 *** scm
 
