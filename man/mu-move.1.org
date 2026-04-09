@@ -92,7 +92,7 @@ the flags is prefixed with either *+* ("add this flag") or *-* ("remove this fla
 So to add the /Seen/ flag and remove the /Draft/ flag from whatever the message
 already has, *--flags +S-D*.
 
-You cannot combine relative and relative flags.
+You cannot combine absolute and relative flags.
 
 * EXAMPLES
 
