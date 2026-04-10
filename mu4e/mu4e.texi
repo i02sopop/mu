@@ -1602,7 +1602,7 @@ mu4e-view-show-mime-parts}. This can be a little slow.
 
 Nowadays, typical e-mail messages can be thought of as a series of
 ``MIME-parts'', which are sections of the message. The most prominent of those
-parts is the 'body', which is the main text of the message your are readings.
+parts is the 'body', which is the main text of the message your are reading.
 
 Other MIME-parts in the messages include @emph{attachments}.
 
@@ -1610,9 +1610,12 @@ Other MIME-parts in the messages include @emph{attachments}.
 @cindex attachments
 
 Many e-mail messages contain @emph{attachments}, which are MIME-parts that
-encode files@footnote{Attachments come in two flavors: @t{inline} and
-@t{attachment}. @code{mu4e} does not distinguish between the two when operating on
-them: everything that specifies a filename is considered an attachment}.
+encode files which you can extract.
+
+@footnote{@code{mu} uses some heuristics to decide if a part should be treated
+as an attachment; including @t{inline} parts that specify a filename. The
+heuristic tries to balance false-positive and false-negatives, both of which are
+possible}
 
 To save attachments as files on your computer, @code{mu4e}'s message-view
 offers the command @code{mu4e-view-save-attachments}; its default keybinding is

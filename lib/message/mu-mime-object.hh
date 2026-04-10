@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 2022-2025 Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
+** Copyright (C) 2022-2026 Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
 **
 ** This program is free software; you can redistribute it and/or modify it
 ** under the terms of the GNU General Public License as published by the
@@ -171,7 +171,6 @@ private:
 };
 
 
-
 /**
  * Thin wrapper around a GMimeContentType
  *
@@ -197,7 +196,6 @@ struct MimeContentType: public Object {
 		return g_mime_content_type_is_type(self(), type.c_str(),
 						   subtype.c_str());
 	}
-
 	Option<std::string> parameter(const std::string& name) const noexcept {
 		const char *param{g_mime_content_type_get_parameter(self(), name.c_str())};
 		if (!param || !param[0])
@@ -205,17 +203,47 @@ struct MimeContentType: public Object {
 		else
 			return Some(std::string{param});
 	}
-
 private:
 	GMimeContentType* self() const {
 		return reinterpret_cast<GMimeContentType*>(object());
 	}
 };
 
+/**
+ * Thin wrapper around a GMimeContentDisposition
+ *
+ */
+struct MimeContentDisposition: public Object {
+
+	MimeContentDisposition(GMimeContentDisposition *disp) : Object{G_OBJECT(disp)} {
+		if (!GMIME_IS_CONTENT_DISPOSITION(self()))
+			throw std::runtime_error("not a content-disposition");
+	}
+
+	std::string disposition() const noexcept {
+		if (const auto disp{g_mime_content_disposition_get_disposition(self())}; disp)
+			return disp;
+		else
+			return {};
+	}
+	bool is_attachment() const noexcept {
+		return g_mime_content_disposition_is_attachment(self());
+	}
+
+	Option<std::string> parameter(const std::string& name) const noexcept {
+		const char *param{g_mime_content_disposition_get_parameter(self(), name.c_str())};
+		if (!param || !param[0])
+			return Nothing;
+		else
+			return Some(std::string{param});
+	}
+private:
+	GMimeContentDisposition* self() const {
+		return reinterpret_cast<GMimeContentDisposition*>(object());
+	}
+};
 
 
-
-
 /**
  * Thin wrapper around a GMimeStream
  *
@@ -272,7 +300,6 @@ constexpr Option<std::string_view> to_string_view_opt(const S& seq, T t) {
 		return it->second;
 }
 
-
 /**
  * Thin wrapper around a GMimeDataWrapper
  *
@@ -298,7 +325,6 @@ private:
 };
 
 
-
 /**
  * Thin wrapper around a GMimeCertifcate
  *
@@ -494,7 +520,6 @@ constexpr Option<std::string_view> to_string_view_opt(MimeCertificate::Validity 
 }
 
 
-
 /**
  * Thin wrapper around a GMimeSignature
  *
@@ -575,7 +600,6 @@ static inline std::string to_string(MimeSignature::Status status) {
 
 
 
-
 /**
 * Thin wrapper around a GMimeDecryptResult
  *
@@ -645,7 +669,6 @@ constexpr Option<std::string_view> to_string_view_opt(MimeDecryptResult::CipherA
 	return to_string_view_opt(AllCipherAlgos, algo);
 }
 
-
 /**
  * Thin wrapper around a GMimeCryptoContext
  *
@@ -748,7 +771,6 @@ private:
 	}
 };
 
-
 /**
  * Thin wrapper around a GMimeObject
  *
@@ -817,6 +839,19 @@ public:
 	Option<std::string> content_type_parameter(const std::string& param) const noexcept {
 		return Mu::to_string_opt(
 			g_mime_object_get_content_type_parameter(self(), param.c_str()));
+	}
+
+	/**
+	 * Get the content disposition
+	 *
+	 * @return the content-disposition or Nothing
+	 */
+	Option<MimeContentDisposition> content_disposition() const noexcept {
+		auto disp{g_mime_object_get_content_disposition(self())};
+		if (!disp)
+			return Nothing;
+		else
+			return MimeContentDisposition(disp);
 	}
 
 	/**
@@ -918,7 +953,6 @@ private:
 	}
 };
 
-
 /**
  * Thin wrapper around a GMimeMessage
  *
@@ -1024,7 +1058,6 @@ private:
 		return reinterpret_cast<GMimeMessage*>(object());
 	}
 };
-
 /**
  * Thin wrapper around a GMimePart.
  *
@@ -1200,7 +1233,6 @@ private:
 };
 
 
-
 /**
  * Thin wrapper around a GMimeMessagePart.
  *
@@ -1235,7 +1267,7 @@ private:
 	}
 
 };
-/**
+/**
  * Thin wrapper around a GMimeApplicationPkcs7Mime
  *
  */
@@ -1270,7 +1302,6 @@ private:
 	}
 };
 
-
 /**
  * Thin wrapper around a GMimeMultiPart
  *
@@ -1327,7 +1358,6 @@ private:
 	}
 };
 
-
 /**
  * Thin wrapper around a GMimeMultiPartEncrypted
  *
@@ -1365,7 +1395,6 @@ private:
 
 MU_ENABLE_BITOPS(MimeMultipartEncrypted::DecryptFlags);
 
-
 /**
  * Thin wrapper around a GMimeMultiPartSigned
  *
@@ -1387,8 +1416,6 @@ public:
 		EnableKeyserverLookups	      = GMIME_VERIFY_ENABLE_KEYSERVER_LOOKUPS,
 		EnableOnlineCertificateChecks = GMIME_VERIFY_ENABLE_ONLINE_CERTIFICATE_CHECKS
 	};
-
-	// Result<std::vector<MimeSignature>> verify(VerifyFlags vflags=VerifyFlags::None) const noexcept;
 
 	Result<std::vector<MimeSignature>> verify(const MimeCryptoContext& ctx,
 						  VerifyFlags vflags=VerifyFlags::None) const noexcept;

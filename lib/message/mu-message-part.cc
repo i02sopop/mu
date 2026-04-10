@@ -195,16 +195,21 @@ MessagePart::looks_like_attachment() const noexcept
 	if (!ctype)
 		return false; // no content-type: not an attachment.
 
-	// we consider some parts _not_ to be attachments regardless of disposition
-	if  (matches(*ctype,{{"application", "pgp-keys"}}))
+	// we consider some parts _not_ to be attachments regardless of
+	// disposition
+	if  (matches(*ctype,{{"application", "pgp-keys"},
+			     {"application", "ics"}}))
 		return false;
 
-	// we consider some parts to be attachments regardless of disposition
-	if  (matches(*ctype,{{"image", "*"},
-			     {"audio", "*"},
-			     {"application", "*"},
-			     {"application", "x-patch"}}))
+	if (is_attachment()) // i.e., as per content-disposition
 		return true;
+
+	// we also consider "inline" parts as attachment, if the
+	// content-disposition has a filename property.
+	if (const auto cdisp{mime_object().content_disposition()}; !!cdisp) {
+		if (const auto& fname{cdisp->parameter("filename")}; !!fname)
+			return true;
+	}
 
 	// otherwise, rely on the disposition
 	return is_attachment();

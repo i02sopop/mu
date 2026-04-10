@@ -424,9 +424,11 @@ process_part(const MimeObject& parent, const MimePart& part,
 	if (!ctype)
 		return;
 
-	// flag as calendar, if not already
+	// flag as calendar, if not already.
 	if (none_of(info.flags & Flags::Calendar) &&
-	    ctype->is_type("text", "calendar"))
+	    (ctype->is_type("text", "calendar") ||
+	     ctype->is_type("text", "x-vcalendar") ||
+	     ctype->is_type("application", "ics")))
 		info.flags |= Flags::Calendar;
 
 	// flag as attachment, if not already.
