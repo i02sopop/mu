@@ -76,18 +76,44 @@ See `mu4e--uniquify-file-name' for an example."
 (defvar-local mu4e--view-mime-parts nil
   "Cached MIME parts for this message.")
 
+(defun mu4e--mime-part-encoded-size (handle)
+  "Size in bytes of MIME-part HANDLE as it appears in the message.
+This is the raw, still-encoded size (e.g. including base64 overhead)."
+  (with-current-buffer (mm-handle-buffer handle)
+    (- (point-max) (point-min))))
+
+(defun mu4e--mime-part-decoded-size-approx (handle)
+  "Approximate decoded size in bytes of MIME-part HANDLE.
+
+Computed from the encoded size *without* actually decoding the
+part. For base64 the result is 3/4 of the encoded size; for other
+encodings the encoded size is used as-is, which is accurate for
+identity encodings (7bit/8bit/binary) and a reasonable
+approximation for quoted-printable."
+  (let ((encoded-size (mu4e--mime-part-encoded-size handle))
+        (encoding (mm-handle-encoding handle)))
+    (pcase (and encoding (downcase (format "%s" encoding)))
+      ("base64" (/ (* encoded-size 3) 4))
+      (_ encoded-size))))
+
 (defun mu4e-view-mime-parts()
   "Get the list of MIME parts for this message.
 The list is a list of plists, one for each MIME-part.
 
 The plists have the properties:
 
-    :part-index  : Gnus index number
-    :mime-type   : MIME-type (string) or nil
-    :encoding    : Content encoding (string) or nil
-    :disposition : Content disposition (attachment\" or inline\") or nil
-    :filename    : The file name if it has one, or an invented one
-                   otherwise
+    :part-index         : Gnus index number
+    :mime-type          : MIME-type (string) or nil
+    :encoding           : Content encoding (string) or nil
+    :disposition        : Content disposition (\"attachment\" or \"inline\")
+                          or nil
+    :filename           : The file name if it has one, or an invented one
+                          otherwise
+    :encoded-size       : Size in bytes of the part as it appears in the
+                          message (still encoded)
+    :decoded-size-approx: Approximate decoded size in bytes, computed from
+                          the encoded size without actually decoding the
+                          part (see `mu4e--mime-part-decoded-size-approx')
 
 There are some internal fields as well, e.g. ; subject to change:
 
@@ -120,6 +146,9 @@ This uses `gnus-article-mime-handle-alist'."
                          ;; XXX perhaps guess extension based on mime-type
                          :filename    ,(or fname
                                            (format "mime-part-%02d" index))
+                         :encoded-size ,(mu4e--mime-part-encoded-size handle)
+                         :decoded-size-approx
+                         ,(mu4e--mime-part-decoded-size-approx handle)
                          :target-dir  ,(mu4e-determine-attachment-dir
                                         fname mime-type)
                           ;; 'attachment-like' just means it has its own
@@ -194,11 +223,21 @@ COMPLETIONS is the list of completion strings to affixate."
                                  'face 'mu4e-header-key-face))
             (mimetype (propertize (or (plist-get part :mime-type) "")
                                  'face 'mu4e-header-value-face))
+            (size (propertize
+                   (file-size-human-readable
+                    (or (plist-get part :decoded-size-approx) 0))
+                   'face 'mu4e-system-face))
             (target (propertize (or (plist-get part :target-dir) "")
                                 'face 'mu4e-system-face))
-            (icon (or (mu4e-mime-type-to-icon
-                      (plist-get part :mime-type))
-                     (mu4e-file-name-to-icon raw-filename)))
+            ;; Prefer the real filename: `nerd-icons' matches filenames
+            ;; against regexes, so a specific name like `foo.patch' picks
+            ;; a better icon than the dummy `file.patch' derived from the
+            ;; MIME type. Only fall back to the MIME type when there's
+            ;; no filename.
+            (icon (or (and (> (length raw-filename) 0)
+                           (mu4e-file-name-to-icon raw-filename))
+                      (mu4e-mime-type-to-icon
+                       (plist-get part :mime-type))))
             (prefix (if icon (concat icon " ") ""))
             (suffix
              (pcase type
@@ -207,7 +246,9 @@ COMPLETIONS is the list of completion strings to affixate."
                  (make-string (- (+ longest-filename 2)
                                  (length (format "%s" candidate))) ?\s)
                  (format "%20s" mimetype)
-                 "       "
+                 "  "
+                 (format "%8s" size)
+                 "   "
                  (format "%s" (concat "-> " target))))
                ('mime-part
                 (concat
@@ -216,7 +257,9 @@ COMPLETIONS is the list of completion strings to affixate."
                  (make-string (- (+ longest-filename 2)
                                  (length filename)) ?\s)
                  (format "%20s" mimetype)
-                 "       "
+                 "  "
+                 (format "%8s" size)
+                 "   "
                  (format "%s" (concat "-> " target))))
                (_ (mu4e-error "Unsupported annotation type %s" type)))))
        (list candidate prefix suffix)))

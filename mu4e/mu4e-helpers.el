@@ -35,7 +35,6 @@
 
 (require 'mu4e-window)
 (require 'mu4e-config)
-(require 'mailcap)
 
 ;;; Customization
 
@@ -72,18 +71,43 @@ Uses `mu4e-file-name-to-icon-function' if set."
   (when (and filename mu4e-file-name-to-icon-function)
     (funcall mu4e-file-name-to-icon-function filename)))
 
+(defconst mu4e--mime-subtype-extension-alist
+  '(("plain"         . "txt")
+    ("x-shellscript" . "sh")
+    ("svg+xml"       . "svg"))
+  "Alist mapping MIME subtypes to file extensions for known quirks.
+Used by `mu4e-mime-type-to-icon' when deriving a dummy filename
+from a MIME type.
+
+Only entries whose mapping cannot be obtained by simply stripping
+a leading `x-' need to be listed here.")
+
+(defun mu4e--mime-type-extension (mime-type)
+  "Derive a plausible file extension from MIME-TYPE.
+
+Uses `mu4e--mime-subtype-extension-alist' for known quirks,
+otherwise strips any `x-' prefix from the subtype (the part
+after the `/').
+
+Returns nil for malformed MIME types."
+  (when (and mime-type (string-match "/\\(.+\\)\\'" mime-type))
+    (let ((sub (downcase (match-string 1 mime-type))))
+      (or (cdr (assoc sub mu4e--mime-subtype-extension-alist))
+          (replace-regexp-in-string "\\`x-" "" sub)))))
+
 (defun mu4e-mime-type-to-icon (mime-type)
   "Return an icon string for MIME-TYPE, or nil.
+
 Uses `mu4e-mime-type-to-icon-function' if set; otherwise
 falls back to `mu4e-file-name-to-icon' with a dummy filename
-derived from the MIME type via `mailcap-mime-type-to-extension'."
+derived from the MIME type's subtype (e.g. `image/png' yields
+`file.png'), consulting `mu4e--mime-subtype-extension-alist'
+for known quirks like `text/plain' -> `txt'."
   (when mime-type
     (or (and mu4e-mime-type-to-icon-function
              (funcall mu4e-mime-type-to-icon-function mime-type))
-        (let ((ext (mailcap-mime-type-to-extension mime-type)))
-          (when ext
-            (mu4e-file-name-to-icon
-             (concat "file." (symbol-name ext))))))))
+        (when-let* ((ext (mu4e--mime-type-extension mime-type)))
+          (mu4e-file-name-to-icon (concat "file." ext))))))
 
 ;;; Messages, warnings and errors
 (defun mu4e-format (frm &rest args)
