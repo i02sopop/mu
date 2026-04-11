@@ -68,7 +68,7 @@
   "A list of header fields to show in the headers buffer.
 Each element has the form (HEADER . WIDTH), where HEADER is one of
 the available headers (see `mu4e-header-info') and WIDTH is the
-respective width in characters.
+respective width in characters
 
 A width of nil means \"unrestricted\", and this is best reserved
 for the rightmost (last) field. Note that emacs may become very
@@ -83,15 +83,10 @@ altogether."
                                   mu4e-header-info)
                         (restricted-sexp
                          :tag "User-specified header"
-                         :match-alternatives (mu4e--headers-header-p)))
+                         :match-alternatives (mu4e--valid-header-p)))
                        (choice (integer :tag "width")
                                (const :tag "unrestricted width" nil))))
   :group 'mu4e-headers)
-
-(defun mu4e--headers-header-p (symbol)
-  "Is SYMBOL a valid mu4e header?
-This means its either one of the build-in or user-specified headers."
-  (assoc symbol (append mu4e-header-info mu4e-header-info-custom)))
 
 (defcustom mu4e-headers-date-format "%x"
   "Date format to use in the headers view.

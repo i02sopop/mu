@@ -1416,6 +1416,9 @@ from the built-in fields, you can also create custom fields using
 end of a message,it automatically takes you to the next one. If you want
 to prevent this behavior, set @code{mu4e-view-scroll-to-next} to
 @code{nil}.
+@item Since attachments are also shown in the message-body, you can suppress the @t{Attachments:} headder;
+by customizing @code{gnus-mime-display-attachment-buttons-in-header} or tweak
+the appearance through @code{gnus-mime-button-line-format}
 @end itemize
 
 @node MSGV Keybindings

@@ -28,6 +28,15 @@
      (see docstring). E.g. when you have the "Nerd Icons" package, you can set
      this to ~nerd-icons-icon-for-file~. (1.14.1)
 
+   - The message-view display has been stream-lined in number of ways, removing
+     some of the Gnus-elements. (1.14.1)
+
+     You can streamline the display further by suppressing the "Attachments:"
+     headers, since most of the information is contained in the message body (or
+     through ~M-x mu4e-view-mime-part-action~, 'A'); see
+     ~gnus-mime-display-attachment-buttons-in-header~, and
+     ~gnus-mime-button-line-format~ to tweak the appearance
+
    - ~mu4e-compose-crypto-policy~ now also recognizes ~sign-signed-replies~, to
      automatically sign when replying to signed messages (1.14.1).
 

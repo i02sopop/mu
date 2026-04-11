@@ -61,17 +61,27 @@ Otherwise, don't move to the next message."
   :group 'mu4e-view)
 
 (defcustom mu4e-view-fields
-  '(:from :to  :cc :subject :flags :date :maildir :mailing-list :tags)
-  "Header fields to display in the message view buffer.
+  '(:from :to  :cc :subject :flags :date
+          :maildir :mailing-list :tags :labels)
+  "Mu4e header fields to display in the message view buffer.
 
 For the complete list of available headers, see
 `mu4e-header-info'.
 
-Note, you can use this to add fields that are not otherwise
-shown; you can further tweak the other fields using e.g.,
-`gnus-visible-headers' and `gnus-ignored-headers' - see the gnus
-documentation for details."
-  :type '(repeat symbol)
+In addition to the mu4e fields, Gnus _also_ can show fields; See
+`gnus-visible-headers' and `gnus-ignored-headers'. A special case
+is the Attachments: header: see
+`gnus-mime-display-attachment-buttons-in-header', and
+`gnus-mime-button-line-format' for tweaking the appearance."
+  :type `(repeat (choice
+                  ,@(mapcar (lambda (h)
+                              (list 'const :tag
+                                    (plist-get (cdr h) :help)
+                                    (car h)))
+                            mu4e-header-info)
+                  (restricted-sexp
+                   :tag "User-specified header"
+                   :match-alternatives (mu4e--valid-header-p))))
   :group 'mu4e-view)
 
 (defcustom mu4e-view-actions
@@ -579,7 +589,6 @@ activates URLs (in plain-text mode only)."
          (charset (and charset (intern charset)))
          (mu4e--view-rendering t) ;; needed if e.g. an ics file is buttonized
          (gnus-article-emulate-mime nil) ;; avoid perf problems
-         (gnus-mime-button-line-format "%{%([%p. %n]%)%}%e\n")
          (gnus-newsgroup-charset
           (if (and charset (coding-system-p charset)) charset
             (detect-coding-region (point-min) (point-max) t)))
@@ -696,7 +705,6 @@ render.  After inserting, highlight the headers."
          ;; otherwise they are handled by Gnus.
          (when-let* ((raw (and raw-headers (cdr (assq field raw-headers)))))
            (mu4e--view-gnus-insert-header field raw)))
-        ((or ':attachments ':signature ':decryption)) ;; skip
         (_
          (mu4e--view-gnus-insert-header-custom msg field)))))
   ;; Highlight the header block we just inserted
