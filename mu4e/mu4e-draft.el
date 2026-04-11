@@ -41,7 +41,7 @@
 (declare-function mu4e "mu4e")
 
 (defcustom mu4e-compose-crypto-policy
-  '(encrypt-encrypted-replies sign-encrypted-replies)
+  '(encrypt-encrypted-replies sign-encrypted-replies sign-signed-replies)
   "Policy to control when messages will be signed/encrypted.
 
 The value is a list which influence the way draft messages are
@@ -59,6 +59,8 @@ created. Specifically, it might contain:
   non-encrypted messages.
 - `sign-encrypted-replies': Add a signature when responding
   to encrypted messages.
+- `sign-signed-replies': Add a signature when responding to
+  signed messages.
 
 It should be noted that certain symbols have priorities over one
 another. So `sign-all-messages' implies `sign-all-replies', which
@@ -84,7 +86,11 @@ All `sign-*' options have a `encrypt-*' analogue."
               (const :tag "Sign replies to encrypted messages"
                      sign-encrypted-replies)
               (const :tag "Encrypt replies to encrypted messages"
-                     encrypt-encrypted-replies))
+                     encrypt-encrypted-replies)
+              (const :tag "Sign replies to signed messages"
+                     sign-signed-replies)
+              (const :tag "Encrypt replies to signed messages"
+                     encrypt-signed-replies))
   :group 'mu4e-compose)
 
 ;;; Crypto
@@ -93,6 +99,8 @@ All `sign-*' options have a `encrypt-*' analogue."
 See `mu4e-compose-crypto-policy' for more details."
   (let* ((encrypted-p
           (and parent (memq 'encrypted (mu4e-message-field parent :flags))))
+         (signed-p
+          (and parent (memq 'signed (mu4e-message-field parent :flags))))
          (encrypt
           (or (memq 'encrypt-all-messages mu4e-compose-crypto-policy)
               (and (memq 'encrypt-new-messages mu4e-compose-crypto-policy)
@@ -105,9 +113,12 @@ See `mu4e-compose-crypto-policy' for more details."
                    (memq 'encrypt-all-replies mu4e-compose-crypto-policy))
               (and (eq compose-type 'reply) (not encrypted-p) ;; plain replies
                    (memq 'encrypt-plain-replies mu4e-compose-crypto-policy))
-              (and (eq compose-type 'reply) encrypted-p
+              (and (eq compose-type 'reply) encrypted-p ;; encrypted replies
                    (memq 'encrypt-encrypted-replies
-                         mu4e-compose-crypto-policy)))) ;; encrypted replies
+                         mu4e-compose-crypto-policy))
+              (and (eq compose-type 'reply) signed-p ;; signed replies
+                   (memq 'encrypt-signed-replies
+                         mu4e-compose-crypto-policy))))
          (sign
           (or (memq 'sign-all-messages mu4e-compose-crypto-policy)
               (and (eq compose-type 'new) ;; new messages
@@ -121,7 +132,9 @@ See `mu4e-compose-crypto-policy' for more details."
               (and (eq compose-type 'reply) (not encrypted-p) ;; plain replies
                    (memq 'sign-plain-replies mu4e-compose-crypto-policy))
               (and (eq compose-type 'reply) encrypted-p ;; encrypted replies
-                   (memq 'sign-encrypted-replies mu4e-compose-crypto-policy)))))
+                   (memq 'sign-encrypted-replies mu4e-compose-crypto-policy))
+              (and (eq compose-type 'reply) signed-p ;; signed replies
+                   (memq 'sign-signed-replies mu4e-compose-crypto-policy)))))
     (cond ((and sign encrypt) (mml-secure-message-sign-encrypt))
           (sign (mml-secure-message-sign))
           (encrypt (mml-secure-message-encrypt)))))
