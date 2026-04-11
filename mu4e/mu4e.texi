@@ -2026,6 +2026,10 @@ mu4e}.
 
 @node Signing and encrypting
 @section Signing and encrypting
+@cindex signing
+@cindex encrypting
+@cindex decrypting
+@cindex crypto
 
 Signing and encrypting of messages is possible using @ref{(emacs-mime) Top,
 emacs-mime}, most easily accessed through the @t{Attachments}-menu while
@@ -2037,6 +2041,10 @@ that draft messages are @emph{not} encrypted. So if you are using e.g.
 @t{offlineimap} or @t{mbsync} to synchronize with some remote IMAP-service, make
 sure the drafts folder is @emph{not} in the set of synchronized folders, for
 obvious reasons.
+
+You can influence what messages to encrypt or sign using
+@code{mu4e-compose-crypto-policy}; see its docstring for details.
+
 
 @node Queuing mail
 @section Queuing mail

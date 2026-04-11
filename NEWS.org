@@ -28,6 +28,9 @@
      (see docstring). E.g. when you have the "Nerd Icons" package, you can set
      this to ~nerd-icons-icon-for-file~. (1.14.1)
 
+   - ~mu4e-compose-crypto-policy~ now also recognizes ~sign-signed-replies~, to
+     automatically sign when replying to signed messages (1.14.1).
+
 *** scm
 
    - added new ~--eval~ command-line option, so you can do e.g.
