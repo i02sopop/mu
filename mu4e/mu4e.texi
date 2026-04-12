@@ -236,7 +236,7 @@ After these steps, @code{mu4e} should be ready to go!
 * Versions:: Available stable and development versions
 * Installation:: How to install @code{mu} and @code{mu4e}
 * Getting mail:: Getting mail from a server
-* Initializing the message store:: Settings things up
+* Initializing the message store:: Setting things up
 * Indexing your messages:: Creating and maintaining the index
 * Basic configuration:: Settings for @code{mu4e}
 * Folders::  Setting up standard folders
@@ -397,13 +397,13 @@ environment variable @env{MUHOME}.
 Assuming that your maildir is at @file{~/Maildir}, we issue the
 following command:
 @example
-  $ mu init --maildir=~/Maildir
+$ mu init --maildir=~/Maildir
 @end example
 
 You can add some e-mail addresses, so @code{mu} recognizes them as yours:
 
 @example
-  $ mu init --maildir=~/Maildir --personal-address=jim@@example.com \
+$ mu init --maildir=~/Maildir --personal-address=jim@@example.com \
     --personal-address=bob@@example.com
 @end example
 

@@ -26,7 +26,6 @@ can be used, the *--maildir* option is required; it must be an absolute path (bu
 ~~/~ expansion is performed).
 
 ** --personal-address _email-address-or-regex_
-** --my-address _email-address-or-regex_  (alias)
 Specifies that some e-mail address is a /personal/ address. The option can be used
 multiple times, to specify all your addresses.
 
@@ -48,6 +47,9 @@ are *not* generally compatible with Emacs regular expressions. For instance,
 The good news is that *mu4e* can automatically translate the regular-expressions,
 if you allow it to, by installing the *pcre2el* Elisp package. See the *mu4e*
 documentation for further details.
+
+** --my-address _email-address-or-regex_
+Obsolete alias for ~--personal-address~
 
 ** --ignored-address _email-address-or-regex_
 Specifies that some e-mail address is to be ignored from the contacts-cache (the

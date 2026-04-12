@@ -13,6 +13,7 @@
 
 Welcome to ~mu~!
 
+
 Latest development news: [[NEWS.org]].
 
 With the enormous amounts of e-mail many people gather and the importance of
@@ -22,15 +23,15 @@ now, and quickly file away message for later use.
 
 ~mu~ is a set of command-line tools for dealing with e-mail messages stored in the
 Maildir-format. ~mu~'s goal is to help you to quickly find the messages you need,
-view them, extract attachments, create new maildirs, and so on.
+view them, extract attachments, and so on.
 
 After indexing your messages into a [[http://www.xapian.org][Xapian]]-database, you can search them through
 a query language. You can use various message fields or words in the body text
 to find the right messages.
 
-Built on top of ~mu~ are some extensions (included in this package):
+Built on top of ~mu~ are some other tools (included in this package):
 
-- ~mu4e~: a full-featured e-mail client that runs inside emacs
+- ~mu4e~: a full-featured e-mail client that runs inside emacs (more below)
 
 - ~mu-scm~: bindings for the Guile/Scheme programming language (version 3.0 and
   later)
@@ -48,19 +49,19 @@ version 3]] (or higher).
 *mu* attempts to balance development speed and stability.
 
 Active development takes place on ~master~ (the 1.14 series), and we maintain
-~release/1.12~ as well. When possible, fixes (but not features) from ~master~ are
-back-ported to ~release/1.12~.
+~release/1.12~ as well, for any critical fixes.
 
 Every few months, we release a stable version (e.g. ~1.14.0~); development then
 continues in ~master~, with ~-pre<n>~ (e.g. ~1.14.1-pre1~): ~-pre~-suffixed versions
 refer to the current _development_ code, until it is released (and then looses its
 ~-pre~ suffix, i.e., becomes the ~1.14.1~ release).
 
-Hence, if you want to track active development, use ~master~; if you want to avoid
-any changes except bug-fixes, use a 1.12 [[https://github.com/djcb/mu/releases/][release]]; otherwise, track ~master~.
+Hence, generally we recommend the latest 1.14 release; if you want to avoid any
+changes except critical bug-fixes, use the latest 1.12 [[https://github.com/djcb/mu/releases/][release]]; and finally, if
+you want to track active development, use ~master~.
 
 Overall, we try to avoid incompatible changes, but sometimes this is necessary,
-for example to update the versions of required libraries
+for example to update the versions of required libraries.
 
 * Installation
 
@@ -112,6 +113,37 @@ $ meson compile -C build
 $ meson install -C build
 #+end_example
 
-** Contributing
+* Initial setup
+
+Most ~mu~ commands and ~mu4e~ require setting up the database, which is needed only
+once. For this, there is the ~mu init~ command. See its manpage for all the
+details, but could look something like:
+
+#+begin_example
+$ mu init --maildir=~/Maildir          \
+    --personal-address=jim@example.com \
+    --personal-address=bob@example.com \
+    --ignored-address='.*reply*.'
+#+end_example
+
+This creates your database, specifies some of your personal addresses, and some
+addresses (a regular expression) that should be ignored from the contacts-cache
+used for address-autocompletion in ~mu4e~.
+
+After this step, we can index our maildir:
+#+begin_example
+$ mu index
+#+end_example
+The first time you do this, it can take a few minutes, depending on how many
+messages you have. Afterwards, you can run ~mu index~ e.g., after retrieving
+messages from a remote server.
+
+After that has completed you can try to find some messages with some simple
+queries:
+#+begin_example
+$ mu find hello
+#+end_example
+
+* Contributing
 
 Contributions are welcome! See the Github issue list and [[IDEAS.org]].
