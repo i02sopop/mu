@@ -229,39 +229,30 @@ COMPLETIONS is the list of completion strings to affixate."
                    'face 'mu4e-system-face))
             (target (propertize (or (plist-get part :target-dir) "")
                                 'face 'mu4e-system-face))
-            ;; Prefer the real filename: `nerd-icons' matches filenames
-            ;; against regexes, so a specific name like `foo.patch' picks
-            ;; a better icon than the dummy `file.patch' derived from the
-            ;; MIME type. Only fall back to the MIME type when there's
-            ;; no filename.
             (icon (or (and (> (length raw-filename) 0)
                            (mu4e-file-name-to-icon raw-filename))
                       (mu4e-mime-type-to-icon
                        (plist-get part :mime-type))))
             (prefix (if icon (concat icon " ") ""))
-            (suffix
+            ;; For 'attachment the candidate itself is the filename; for
+            ;; 'mime-part the candidate is a numeric part-id, so prepend
+            ;; the filename here. Either way, pad to align the columns
+            ;; that follow.
+            (filename-col
              (pcase type
                ('attachment
-                (concat
-                 (make-string (- (+ longest-filename 2)
-                                 (length (format "%s" candidate))) ?\s)
-                 (format "%20s" mimetype)
-                 "  "
-                 (format "%8s" size)
-                 "   "
-                 (format "%s" (concat "-> " target))))
+                (make-string (- (+ longest-filename 2)
+                                (length (format "%s" candidate))) ?\s))
                ('mime-part
-                (concat
-                 "  "
-                 filename
-                 (make-string (- (+ longest-filename 2)
-                                 (length filename)) ?\s)
-                 (format "%20s" mimetype)
-                 "  "
-                 (format "%8s" size)
-                 "   "
-                 (format "%s" (concat "-> " target))))
-               (_ (mu4e-error "Unsupported annotation type %s" type)))))
+                (concat "  " filename
+                        (make-string (- (+ longest-filename 2)
+                                        (length filename)) ?\s)))
+               (_ (mu4e-error "Unsupported annotation type %s" type))))
+            (suffix
+             (concat filename-col
+                     (format "%20s" mimetype) "  "
+                     (format "%8s" size) "   "
+                     "-> " target)))
        (list candidate prefix suffix)))
    completions))
 
