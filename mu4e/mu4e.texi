@@ -4156,8 +4156,8 @@ With Hydra installed, we can add multi-character shortcuts, for instance:
 Now, you can bind a convenient key to my-mu4e-bookmarks/body.
 @end lisp
 
-@node Nerd-icons
-@section Nerd-icons
+@node Emojis
+@section Emojis
 
 With packages such as
 @uref{https://github.com/rainstormstudio/nerd-icons.el,Nerd Icons} and
