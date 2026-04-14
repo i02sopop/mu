@@ -481,7 +481,8 @@ As a side-effect, a message that is being viewed loses its
       (let ((inhibit-read-only t)
             (gnus-unbuttonized-mime-types '(".*/.*"))
             (gnus-buttonized-mime-types
-             (append (list "multipart/signed" "multipart/encrypted")
+             (append (list "multipart/signed" "multipart/encrypted"
+                           "multipart/alternative")
                      gnus-buttonized-mime-types))
             (gnus-inhibit-mime-unbuttonizing mu4e--view-show-mime-buttons))
         (erase-buffer)
@@ -1044,30 +1045,35 @@ Article Treatment' for more options."
   (funcall (mu4e-read-option "Massage: " mu4e-view-massage-options)))
 
 (defun mu4e-view-toggle-html ()
-  "Toggle html-display of the first html-part found."
+  "Toggle between the HTML and plain-text alternatives.
+Works for `multipart/alternative' messages by pressing the
+corresponding Gnus selector button in the buffer."
   (interactive)
-  ;; This function assumes `gnus-article-mime-handle-alist' is sorted by
-  ;; pertinence, i.e. the first HTML part found in it is the most important one.
   (save-excursion
-    (if-let*((html-part
-              (seq-find (lambda (handle)
-                          (equal (mm-handle-media-type (cdr handle))
-                                 "text/html"))
-                        gnus-article-mime-handle-alist))
-             (text-part
-              (seq-find (lambda (handle)
-                          (equal (mm-handle-media-type (cdr handle))
-                                 "text/plain"))
-                        gnus-article-mime-handle-alist)))
-        (progn
-          ;; Call gnus-mime-inline-part directly, bypassing
-          ;; gnus-article-part-wrapper which requires gnus-summary-buffer.
-          (gnus-mime-inline-part (cdr html-part))
-          ;; Activate or deactivate URLs depending on the new state.
-          (if (mu4e--view-html-displayed-p)
-              (mu4e--view-remove-url-activations)
-            (mu4e--view-activate-urls)))
-      (mu4e-warn "Cannot switch; no html and/or text part in this message"))))
+    (let ((inhibit-read-only t))
+      (if-let* ((alt (seq-find
+                      (lambda (h)
+                        (equal (mm-handle-media-type (cdr h))
+                               "multipart/alternative"))
+                      gnus-article-mime-handle-alist))
+                (children (cdr (cdr alt)))
+                (html (seq-find
+                       (lambda (h) (equal (mm-handle-media-type h) "text/html"))
+                       children))
+                (plain (seq-find
+                        (lambda (h) (equal (mm-handle-media-type h) "text/plain"))
+                        children))
+                (target (if (mm-handle-displayed-p html) plain html))
+                (pos (text-property-any (point-min) (point-max)
+                                        'gnus-data target)))
+          (progn
+            (goto-char pos)
+            (gnus-article-press-button)
+            (if (mm-handle-displayed-p html)
+                (mu4e--view-remove-url-activations)
+              (mu4e--view-activate-urls)))
+        (mu4e-warn
+         "Cannot switch; no html and/or text part in this message")))))
 ;;; Bug Reference mode support
 
 ;; Due to mu4e's view buffer handling (mu4e-view-mode is called long before the
