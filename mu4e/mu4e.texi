@@ -3992,6 +3992,7 @@ with other tools.
 * BBDB::Hooking up with the Insidious Big Brother Database
 * Sauron::Getting new mail notifications with Sauron
 * Hydra:: Custom shortcut menus
+* Emojis:: Emojis for MIME-types
 @end menu
 
 @node Org-contacts
@@ -4154,6 +4155,20 @@ With Hydra installed, we can add multi-character shortcuts, for instance:
 
 Now, you can bind a convenient key to my-mu4e-bookmarks/body.
 @end lisp
+
+@node Nerd-icons
+@section Nerd-icons
+
+With packages such as
+@uref{https://github.com/rainstormstudio/nerd-icons.el,Nerd Icons} and
+@uref{https://github.com/domtronn/all-the-icons.el, All The Icons} you can use
+'emoji' icons in various places in Emacs; see the specific packages for details.
+
+@code{mu4e} has support for these in its message-view, where it can use the
+emojis to decorate the mime-types for attachments. You can enable this through
+the variable @code{mu4e-file-name-to-icon-function}, which you can set to e.g.,
+@code{all-the-icons-icon-for-file} or @code{nerd-icons-icon-for-file name}, for
+All-the-Icons and Nerd-Fonts, respectively.
 
 @node Example configurations
 @appendix Example configurations

@@ -26,7 +26,8 @@
    - You can get icons for MIME-types in the message-view and when using
      ~mu4e-view-mime-part-action~, by configuring ~mu4e-file-name-to-icon-function~
      (see docstring). E.g. when you have the "Nerd Icons" package, you can set
-     this to ~nerd-icons-icon-for-file~. (1.14.1)
+     this to ~nerd-icons-icon-for-file~; or alternatively with "All The Icons", use
+     ~all-the-icons-icon-for-file~ (1.14.1)
 
    - The message-view display has been stream-lined in number of ways, removing
      some of the Gnus-elements. (1.14.1)

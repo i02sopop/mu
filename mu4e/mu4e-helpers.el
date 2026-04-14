@@ -46,11 +46,8 @@ When set, this should be a function that takes a file name and
 returns a string (icon) or nil.
 
 If you have the `nerd-icons' package, you can put
-`nerd-icons-icon-for-file'. If those icons are too big, consider
-installing the special nerd fonts, or perhaps use a value like:
-
-   (lambda (name)
-     (nerd-icons-icon-for-file name :height 1.0)))"
+`nerd-icons-icon-for-file' here; or with `all-the-icons', use
+`all-the-icons-icon-for-file'."
   :type '(choice (const :tag "None" nil) function)
   :group 'mu4e)
 
