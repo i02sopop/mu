@@ -516,6 +516,32 @@ As a side-effect, a message that is being viewed loses its
       ;; only needed on some setups; #2683
       (goto-char (point-min)))))
 
+(defun mu4e--view-cleanup-message-text ()
+  "Clean up the rendered-message for use as cited text.
+
+This expects to be called while in that message buffer.
+
+Strip Gnus MIME-part buttons (e.g. attachment lines like \"[2.
+foo.pdf --- application/pdf; foo.pdf]\") so they do not end up in
+cited replies.
+
+The buttons are identified via the
+`gnus-callback' text property that Gnus puts on them, rather than
+by matching their textual format."
+  (let ((pos (point-min)) start)
+    (while (setq start (text-property-not-all
+                        pos (point-max) 'gnus-callback nil))
+      (let* ((end (or (next-single-property-change
+                       start 'gnus-callback nil (point-max))
+                      (point-max)))
+             (bol (save-excursion (goto-char start)
+                                  (line-beginning-position)))
+             (eol (save-excursion (goto-char end)
+                                  (min (point-max)
+                                       (1+ (line-end-position))))))
+        (delete-region bol eol)
+        (setq pos bol)))))
+
 (defun mu4e-view-message-text (msg)
   "Return the rendered MSG as a string."
   (with-temp-buffer
@@ -525,6 +551,7 @@ As a side-effect, a message that is being viewed loses its
           (gnus-unbuttonized-mime-types '(".*/.*"))
           (mu4e-view-fields '(:from :to :cc :subject :date)))
       (mu4e--view-render-buffer msg)
+      (mu4e--view-cleanup-message-text)
       (buffer-substring-no-properties (point-min) (point-max)))))
 
 (defun mu4e-action-view-in-browser (msg &optional skip-headers)
